@@ -1891,6 +1891,7 @@ const ChamadaManager = () => {
       }
     } catch (error) {
       console.error("Erro ao carregar motivos de justificativa:", error);
+      // Garantir que sempre é um array mesmo em caso de erro
       setJustificationReasons([]);
     }
   };
@@ -1970,9 +1971,12 @@ const ChamadaManager = () => {
     try {
       setLoading(true);
       const response = await axios.get(`${API}/classes`);
-      setTurmas(response.data);
+      // Garantir que response.data é um array
+      const turmasData = Array.isArray(response.data) ? response.data : [];
+      setTurmas(turmasData);
     } catch (error) {
       console.error("Error fetching turmas:", error);
+      setTurmas([]); // Garantir que turmas seja sempre um array
     } finally {
       setLoading(false);
     }
@@ -1984,11 +1988,14 @@ const ChamadaManager = () => {
       console.log("Fetching alunos for turma:", turmaId);
       const response = await axios.get(`${API}/classes/${turmaId}/students`);
       console.log("Alunos response:", response.data);
-      setAlunos(response.data);
+      
+      // Garantir que response.data é um array
+      const alunosData = Array.isArray(response.data) ? response.data : [];
+      setAlunos(alunosData);
 
       // Initialize presencas with all students present by default
       const initialPresencas = {};
-      response.data.forEach((aluno) => {
+      alunosData.forEach((aluno) => {
         initialPresencas[aluno.id] = {
           presente: true,
           justificativa: "",
@@ -2279,7 +2286,7 @@ const ChamadaManager = () => {
               <SelectValue placeholder="Selecione uma turma" />
             </SelectTrigger>
             <SelectContent>
-              {turmas.map((turma) => (
+              {Array.isArray(turmas) && turmas.map((turma) => (
                 <SelectItem key={turma.id} value={turma.id}>
                   {turma.nome} - {turma.ciclo}
                 </SelectItem>
@@ -2348,7 +2355,7 @@ const ChamadaManager = () => {
               </h3>
 
               <div className="space-y-3">
-                {alunos.map((aluno, index) => (
+                {Array.isArray(alunos) && alunos.map((aluno, index) => (
                   <Card
                     key={aluno.id}
                     className={`p-4 transition-all ${
@@ -2527,7 +2534,7 @@ const ChamadaManager = () => {
                   <SelectValue placeholder="Selecione o motivo" />
                 </SelectTrigger>
                 <SelectContent>
-                  {justificationReasons.map((reason) => (
+                  {Array.isArray(justificationReasons) && justificationReasons.map((reason) => (
                     <SelectItem key={reason.code} value={reason.code}>
                       {reason.label}
                     </SelectItem>
