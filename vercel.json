@@ -1,0 +1,14 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "cd frontend && npm run build",
+  "outputDirectory": "frontend/build",
+  "installCommand": "cd frontend && npm install",
+  "framework": null,
+  "devCommand": "cd frontend && npm start",
+  "env": {
+    "REACT_APP_BACKEND_URL": {
+      "description": "URL do backend API",
+      "value": "http://localhost:8000"
+    }
+  }
+}

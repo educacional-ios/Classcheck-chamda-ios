@@ -1,0 +1,20 @@
+<svg width="120" height="40" viewBox="0 0 120 40" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="amarosGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#8B34E8;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#F97316;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Fundo do logo -->
+  <rect x="2" y="2" width="36" height="36" rx="8" fill="url(#amarosGradient)" opacity="0.1"/>
+  
+  <!-- Ícone de código -->
+  <path d="M8 12L14 20L8 28M32 28L26 20L32 12" stroke="url(#amarosGradient)" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  
+  <!-- Texto "Amaro's" -->
+  <text x="45" y="18" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="url(#amarosGradient)">Amaro's</text>
+  
+  <!-- Texto "Developer" -->
+  <text x="45" y="30" font-family="Arial, sans-serif" font-size="10" fill="#6B7280">Developer</text>
+</svg>
