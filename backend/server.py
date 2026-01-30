@@ -3291,7 +3291,10 @@ async def delete_justification(
 @api_router.get("/justifications/reasons")
 async def get_reason_codes():
     """Listar todos os códigos de motivo disponíveis"""
-    return ALLOWED_REASON_CODES
+    return [
+        {"code": code, "label": label}
+        for code, label in ALLOWED_REASON_CODES.items()
+    ]
 
 # 🔥 JOB STORAGE SYSTEM - ANTI-TIMEOUT DEFINITIVO
 import uuid
