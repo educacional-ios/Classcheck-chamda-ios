@@ -39,12 +39,9 @@ origins = [
     "http://localhost",
     "http://localhost:3000",
     "http://127.0.0.1:3000",
-    "https://sistema-ios-chamada.vercel.app",  # 🎯 URL específica do Vercel
-    "https://front-end-sistema-qbl0lhxig-jesielamarojunior-makers-projects.vercel.app",
-    "https://front-end-sistema.vercel.app",
-    "https://sistema-ios-frontend.vercel.app",
-    "https://sistema-ios-backend.onrender.com",  # 🚀 URL do próprio backend Render
-    "*"  # 🚨 EMERGENCY: Permitir todas as origens para resolver CORS
+    "https://classcheck-chamda-ios.vercel.app",  # 🎯 Novo frontend Vercel
+    "https://classcheck-chamda-ios-*.vercel.app",  # Preview deployments
+    "https://sistema-ios-backend.onrender.com",  # 🚀 URL do backend Render
 ]
 
 app.add_middleware(
