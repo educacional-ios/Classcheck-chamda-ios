@@ -1,3 +1,4 @@
+// ClassCheck - Sistema de Chamada IOS (v1.1)
 import React, { useState, useEffect } from "react";
 import "./App.css";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
