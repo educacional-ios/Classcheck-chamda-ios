@@ -733,7 +733,7 @@ const AttendanceModal = ({ open, onClose, turma, onComplete }) => {
 
           {/* Lista de Alunos */}
           <div className="space-y-2 max-h-64 overflow-y-auto">
-            {records.map((record, index) => (
+            {Array.isArray(records) && records.map((record, index) => (
               <div
                 key={record.aluno_id}
                 className={`flex items-center justify-between p-3 rounded-lg border ${
@@ -1353,7 +1353,7 @@ const NotificationButton = () => {
               </div>
             ) : (
               <div className="space-y-4">
-                {notifications.map((notification, index) => (
+                {Array.isArray(notifications) && notifications.map((notification, index) => (
                   <Card key={index} className="border-l-4 border-l-orange-500">
                     <CardContent className="p-4">
                       <div className="flex items-start justify-between">
@@ -1716,7 +1716,7 @@ const Dashboard = () => {
                 </div>
               ) : (
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {pending.map((turma) => (
+                  {Array.isArray(pending) && pending.map((turma) => (
                     <PendingAttendanceCard
                       key={turma.turma_id}
                       turma={turma}
@@ -2818,7 +2818,7 @@ const UsuariosManager = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {pendingUsers.map((user) => (
+              {Array.isArray(pendingUsers) && pendingUsers.map((user) => (
                 <div
                   key={user.id}
                   className="flex items-center justify-between p-4 border rounded-lg"
@@ -2955,7 +2955,7 @@ const UsuariosManager = () => {
                             <SelectValue placeholder="Selecione a unidade" />
                           </SelectTrigger>
                           <SelectContent>
-                            {unidades.map((unidade) => (
+                            {Array.isArray(unidades) && unidades.map((unidade) => (
                               <SelectItem key={unidade.id} value={unidade.id}>
                                 {unidade.nome}
                               </SelectItem>
@@ -2979,7 +2979,7 @@ const UsuariosManager = () => {
                               <SelectValue placeholder="Selecione o curso" />
                             </SelectTrigger>
                             <SelectContent>
-                              {cursos.map((curso) => (
+                              {Array.isArray(cursos) && cursos.map((curso) => (
                                 <SelectItem key={curso.id} value={curso.id}>
                                   {curso.nome}
                                 </SelectItem>
@@ -3017,7 +3017,7 @@ const UsuariosManager = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {usuarios.map((usuario) => (
+                {Array.isArray(usuarios) && usuarios.map((usuario) => (
                   <TableRow key={usuario.id}>
                     <TableCell className="font-medium">
                       {usuario.nome}
@@ -3128,9 +3128,12 @@ const TurmasManager = () => {
       ]);
 
       // ✅ COMBINAR INSTRUTORES E PEDAGOGOS para seleção de responsável
+      // Garantir que os dados sejam arrays
+      const instrutores = Array.isArray(instrutoresRes.data) ? instrutoresRes.data : [];
+      const pedagogos = Array.isArray(pedagogosRes.data) ? pedagogosRes.data : [];
       const todosUsuarios = [
-        ...instrutoresRes.data.map((u) => ({ ...u, tipo_label: "Instrutor" })),
-        ...pedagogosRes.data.map((u) => ({ ...u, tipo_label: "Pedagogo" })),
+        ...instrutores.map((u) => ({ ...u, tipo_label: "Instrutor" })),
+        ...pedagogos.map((u) => ({ ...u, tipo_label: "Pedagogo" })),
       ];
 
       console.log("Turmas:", turmasRes.data);
@@ -3141,13 +3144,20 @@ const TurmasManager = () => {
       console.log("Todos Usuários:", todosUsuarios);
       console.log("Alunos:", alunosRes.data);
 
-      setTurmas(turmasRes.data);
-      setUnidades(unidadesRes.data);
-      setCursos(cursosRes.data);
+      // Garantir que todos os dados sejam arrays
+      setTurmas(Array.isArray(turmasRes.data) ? turmasRes.data : []);
+      setUnidades(Array.isArray(unidadesRes.data) ? unidadesRes.data : []);
+      setCursos(Array.isArray(cursosRes.data) ? cursosRes.data : []);
       setUsuarios(todosUsuarios); // ✅ Usar lista combinada
-      setAlunos(alunosRes.data);
+      setAlunos(Array.isArray(alunosRes.data) ? alunosRes.data : []);
     } catch (error) {
       console.error("Error fetching data:", error);
+      // Garantir que todos os estados sejam arrays vazios em caso de erro
+      setTurmas([]);
+      setUnidades([]);
+      setCursos([]);
+      setUsuarios([]);
+      setAlunos([]);
       toast({
         title: "Erro ao carregar dados",
         description: "Não foi possível carregar os dados necessários",
@@ -3445,7 +3455,7 @@ const TurmasManager = () => {
                           <SelectValue placeholder="Selecione a unidade" />
                         </SelectTrigger>
                         <SelectContent>
-                          {unidades.map((unidade) => (
+                          {Array.isArray(unidades) && unidades.map((unidade) => (
                             <SelectItem key={unidade.id} value={unidade.id}>
                               {unidade.nome}
                             </SelectItem>
@@ -3484,7 +3494,7 @@ const TurmasManager = () => {
                           <SelectValue placeholder="Selecione o curso" />
                         </SelectTrigger>
                         <SelectContent>
-                          {cursos.map((curso) => (
+                          {Array.isArray(cursos) && cursos.map((curso) => (
                             <SelectItem key={curso.id} value={curso.id}>
                               {curso.nome}
                             </SelectItem>
@@ -3524,7 +3534,7 @@ const TurmasManager = () => {
                         <SelectValue placeholder="Selecione o responsável" />
                       </SelectTrigger>
                       <SelectContent>
-                        {usuarios.map((usuario) => (
+                        {Array.isArray(usuarios) && usuarios.map((usuario) => (
                           <SelectItem key={usuario.id} value={usuario.id}>
                             {usuario.nome} ({usuario.tipo_label})
                           </SelectItem>
@@ -3671,7 +3681,7 @@ const TurmasManager = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {turmas.map((turma) => (
+              {Array.isArray(turmas) && turmas.map((turma) => (
                 <TableRow key={turma.id}>
                   <TableCell className="font-medium">{turma.nome}</TableCell>
                   <TableCell>
@@ -4440,7 +4450,7 @@ const RelatoriosManager = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todas as Unidades</SelectItem>
-                  {unidades.map((unidade) => (
+                  {Array.isArray(unidades) && unidades.map((unidade) => (
                     <SelectItem key={unidade.id} value={unidade.id}>
                       {unidade.nome}
                     </SelectItem>
@@ -4464,7 +4474,7 @@ const RelatoriosManager = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todos os Cursos</SelectItem>
-                  {cursos.map((curso) => (
+                  {Array.isArray(cursos) && cursos.map((curso) => (
                     <SelectItem key={curso.id} value={curso.id}>
                       {curso.nome}
                     </SelectItem>
@@ -4488,7 +4498,7 @@ const RelatoriosManager = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todas as Turmas</SelectItem>
-                  {turmas.map((turma) => (
+                  {Array.isArray(turmas) && turmas.map((turma) => (
                     <SelectItem key={turma.id} value={turma.id}>
                       {turma.nome}
                     </SelectItem>
@@ -5450,7 +5460,7 @@ Carlos Pereira,111.222.333-44,01/01/1988,carlos@email.com,11777777777,11.122.233
                           <SelectItem value="sem_turma">
                             Sem turma (não alocado)
                           </SelectItem>
-                          {turmas.map((turma) => (
+                          {Array.isArray(turmas) && turmas.map((turma) => (
                             <SelectItem key={turma.id} value={turma.id}>
                               {turma.nome} -{" "}
                               {turma.curso_nome || "Curso não informado"}
@@ -5694,7 +5704,7 @@ Carlos Pereira,111.222.333-44,01/01/1988,carlos@email.com,11777777777,11.122.233
               </TableRow>
             </TableHeader>
             <TableBody>
-              {alunos.map((aluno) => (
+              {Array.isArray(alunos) && alunos.map((aluno) => (
                 <TableRow key={aluno.id}>
                   <TableCell className="font-medium">{aluno.nome}</TableCell>
                   <TableCell>{aluno.cpf}</TableCell>
@@ -6387,7 +6397,7 @@ Carlos Pereira,111.222.333-44,01/01/1988,carlos@email.com,11777777777,11.122.233
                       </div>
                     ) : (
                       <div className="space-y-4">
-                        {studentJustifications.map((justification) => (
+                        {Array.isArray(studentJustifications) && studentJustifications.map((justification) => (
                           <Card
                             key={justification.id}
                             className="border-l-4 border-l-blue-500"
@@ -6712,7 +6722,7 @@ const UnidadesManager = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {unidades.map((unidade) => (
+              {Array.isArray(unidades) && unidades.map((unidade) => (
                 <TableRow key={unidade.id}>
                   <TableCell className="font-medium">{unidade.nome}</TableCell>
                   <TableCell>
@@ -7066,7 +7076,7 @@ const CursosManager = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {cursos.map((curso) => (
+              {Array.isArray(cursos) && cursos.map((curso) => (
                 <TableRow key={curso.id}>
                   <TableCell className="font-medium">{curso.nome}</TableCell>
                   <TableCell>
