@@ -109,10 +109,11 @@ print(f"🌍 Ambiente: RENDER={os.environ.get('RENDER')}, RAILWAY={os.environ.ge
 # -------------------------
 # MongoDB connection
 # -------------------------
-username = quote_plus("jesielamarojunior_db_user")
-password = quote_plus("admin123")
+# NOVO BANCO: chamada-prod
+username = quote_plus("educacional_db_user")
+password = quote_plus("qpvR7mlOHSoxwvQ8")
 
-MONGO_URL = f"mongodb+srv://{username}:{password}@cluster0.vuho6l7.mongodb.net/IOS-SISTEMA-CHAMADA?retryWrites=true&w=majority"
+MONGO_URL = f"mongodb+srv://{username}:{password}@chamada-prod.nr10evs.mongodb.net/IOS-SISTEMA-CHAMADA?retryWrites=true&w=majority&appName=chamada-prod"
 DB_NAME = "IOS-SISTEMA-CHAMADA"
 
 client = AsyncIOMotorClient(MONGO_URL)
