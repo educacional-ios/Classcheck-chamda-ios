@@ -1873,9 +1873,24 @@ const ChamadaManager = () => {
   const fetchJustificationReasons = async () => {
     try {
       const response = await axios.get(`${API}/justifications/reasons`);
-      setJustificationReasons(response.data);
+      const data = response.data;
+      
+      // Handle both array and object formats
+      if (Array.isArray(data)) {
+        setJustificationReasons(data);
+      } else if (typeof data === 'object' && data !== null) {
+        // Convert object to array format
+        const reasons = Object.entries(data).map(([code, label]) => ({
+          code,
+          label
+        }));
+        setJustificationReasons(reasons);
+      } else {
+        setJustificationReasons([]);
+      }
     } catch (error) {
       console.error("Erro ao carregar motivos de justificativa:", error);
+      setJustificationReasons([]);
     }
   };
 
