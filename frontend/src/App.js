@@ -84,7 +84,7 @@ import {
   TriangleAlert,
 } from "lucide-react";
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || "https://sistema-ios-backend.onrender.com";
 const API = `${BACKEND_URL}/api`;
 
 // 🔍 SISTEMA DE DEBUG UNIVERSAL - Para testar em outros computadores
