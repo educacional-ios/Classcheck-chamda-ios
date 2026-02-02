@@ -3260,10 +3260,18 @@ const TurmasManager = () => {
     try {
       console.log("📝 Enviando dados da turma:", formData);
 
+      // COMPATIBILIDADE: Enviar ambos os formatos até Render atualizar
+      const payload = {
+        ...formData,
+        instrutor_id: formData.instrutor_ids && formData.instrutor_ids.length > 0 
+          ? formData.instrutor_ids[0] 
+          : null
+      };
+
       if (editingTurma) {
         const response = await axios.put(
           `${API}/classes/${editingTurma.id}`,
-          formData,
+          payload,
         );
         console.log("✅ Turma atualizada:", response.data);
         toast({
@@ -3271,7 +3279,7 @@ const TurmasManager = () => {
           description: "As informações da turma foram atualizadas.",
         });
       } else {
-        const response = await axios.post(`${API}/classes`, formData);
+        const response = await axios.post(`${API}/classes`, payload);
         console.log("✅ Turma criada:", response.data);
         toast({
           title: "Turma criada com sucesso!",
