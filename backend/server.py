@@ -376,7 +376,9 @@ class TurmaCreate(BaseModel):
     nome: str
     unidade_id: str
     curso_id: str
-    instrutor_ids: List[str]  # Lista de até 2 instrutores
+    # COMPATIBILIDADE: Aceita tanto formato antigo quanto novo
+    instrutor_id: Optional[str] = None  # Formato ANTIGO (1 instrutor)
+    instrutor_ids: Optional[List[str]] = None  # Formato NOVO (até 2 instrutores)
     pedagogo_id: Optional[str] = None
     monitor_id: Optional[str] = None
     data_inicio: date
@@ -387,6 +389,14 @@ class TurmaCreate(BaseModel):
     vagas_total: int = 30
     ciclo: Optional[str] = None
     tipo_turma: str = "regular"  # "regular" (instrutor) ou "extensao" (pedagogo)
+    
+    def get_instrutor_ids(self) -> List[str]:
+        """Retorna lista de instrutores independente do formato enviado"""
+        if self.instrutor_ids:
+            return self.instrutor_ids
+        elif self.instrutor_id:
+            return [self.instrutor_id]
+        return []
 
 class TurmaUpdate(BaseModel):
     nome: Optional[str] = None
@@ -2232,16 +2242,19 @@ async def import_students_csv(
 # TURMAS ROUTES
 @api_router.post("/classes", response_model=Turma)
 async def create_turma(turma_create: TurmaCreate, current_user: UserResponse = Depends(get_current_user)):
+    # COMPATIBILIDADE: Converter formato antigo para novo
+    instrutor_ids_list = turma_create.get_instrutor_ids()
+    
     # Validar número de instrutores
-    if len(turma_create.instrutor_ids) == 0:
+    if len(instrutor_ids_list) == 0:
         raise HTTPException(status_code=400, detail="Pelo menos um instrutor deve ser fornecido")
-    if len(turma_create.instrutor_ids) > 2:
+    if len(instrutor_ids_list) > 2:
         raise HTTPException(status_code=400, detail="Máximo de 2 instrutores por turma")
     
     # Admin pode criar qualquer turma
     if current_user.tipo == "admin":
         # Validar se todos os instrutores existem e estão ativos
-        for instrutor_id in turma_create.instrutor_ids:
+        for instrutor_id in instrutor_ids_list:
             responsavel = await db.usuarios.find_one({
                 "id": instrutor_id, 
                 "tipo": {"$in": ["instrutor", "pedagogo"]}, 
@@ -2263,8 +2276,8 @@ async def create_turma(turma_create: TurmaCreate, current_user: UserResponse = D
             raise HTTPException(status_code=403, detail="Instrutor só pode criar turmas da sua unidade")
         
         # Adicionar o instrutor à lista se não estiver
-        if current_user.id not in turma_create.instrutor_ids:
-            turma_create.instrutor_ids.append(current_user.id)
+        if current_user.id not in instrutor_ids_list:
+            instrutor_ids_list.append(current_user.id)
         turma_create.tipo_turma = "regular"  # Turma regular do instrutor
     
     # Pedagogo pode criar turmas de extensão
@@ -2280,7 +2293,7 @@ async def create_turma(turma_create: TurmaCreate, current_user: UserResponse = D
             raise HTTPException(status_code=403, detail="Pedagogo só pode criar turmas da sua unidade")
         
         # Definir pedagogo automaticamente
-        turma_create.instrutor_ids = [current_user.id]
+        instrutor_ids_list = [current_user.id]
         turma_create.tipo_turma = "extensao"  # Turma de extensão do pedagogo
     
     else:
@@ -2295,7 +2308,9 @@ async def create_turma(turma_create: TurmaCreate, current_user: UserResponse = D
     if not unidade:
         raise HTTPException(status_code=400, detail="Unidade não encontrada")
     
-    turma_dict = prepare_for_mongo(turma_create.dict())
+    # CRIAR TURMA COM INSTRUTOR_IDS (formato novo)
+    turma_dict = prepare_for_mongo(turma_create.dict(exclude={'instrutor_id', 'instrutor_ids'}))
+    turma_dict['instrutor_ids'] = instrutor_ids_list  # Sempre usar formato novo
     turma_obj = Turma(**turma_dict)
     
     mongo_data = prepare_for_mongo(turma_obj.dict())
