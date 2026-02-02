@@ -733,31 +733,32 @@ const AttendanceModal = ({ open, onClose, turma, onComplete }) => {
 
           {/* Lista de Alunos */}
           <div className="space-y-2 max-h-64 overflow-y-auto">
-            {Array.isArray(records) && records.map((record, index) => (
-              <div
-                key={record.aluno_id}
-                className={`flex items-center justify-between p-3 rounded-lg border ${
-                  record.presente
-                    ? "bg-green-50 border-green-200"
-                    : "bg-red-50 border-red-200"
-                }`}
-              >
-                <span className="font-medium">{record.nome}</span>
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    checked={record.presente}
-                    onCheckedChange={() => togglePresence(index)}
-                  />
-                  <span
-                    className={`text-sm font-medium ${
-                      record.presente ? "text-green-700" : "text-red-700"
-                    }`}
-                  >
-                    {record.presente ? "Presente" : "Ausente"}
-                  </span>
+            {Array.isArray(records) &&
+              records.map((record, index) => (
+                <div
+                  key={record.aluno_id}
+                  className={`flex items-center justify-between p-3 rounded-lg border ${
+                    record.presente
+                      ? "bg-green-50 border-green-200"
+                      : "bg-red-50 border-red-200"
+                  }`}
+                >
+                  <span className="font-medium">{record.nome}</span>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      checked={record.presente}
+                      onCheckedChange={() => togglePresence(index)}
+                    />
+                    <span
+                      className={`text-sm font-medium ${
+                        record.presente ? "text-green-700" : "text-red-700"
+                      }`}
+                    >
+                      {record.presente ? "Presente" : "Ausente"}
+                    </span>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
           </div>
 
           {/* Observações */}
@@ -1353,65 +1354,70 @@ const NotificationButton = () => {
               </div>
             ) : (
               <div className="space-y-4">
-                {Array.isArray(notifications) && notifications.map((notification, index) => (
-                  <Card key={index} className="border-l-4 border-l-orange-500">
-                    <CardContent className="p-4">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <h4 className="font-semibold text-gray-900">
-                              {notification.turma_nome}
-                            </h4>
-                            <Badge
-                              variant="outline"
-                              className={getPriorityBadge(
-                                notification.prioridade,
-                              )}
-                            >
-                              {notification.prioridade === "alta"
-                                ? "Urgente"
-                                : notification.prioridade === "media"
-                                  ? "Importante"
-                                  : "Pendente"}
-                            </Badge>
+                {Array.isArray(notifications) &&
+                  notifications.map((notification, index) => (
+                    <Card
+                      key={index}
+                      className="border-l-4 border-l-orange-500"
+                    >
+                      <CardContent className="p-4">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <h4 className="font-semibold text-gray-900">
+                                {notification.turma_nome}
+                              </h4>
+                              <Badge
+                                variant="outline"
+                                className={getPriorityBadge(
+                                  notification.prioridade,
+                                )}
+                              >
+                                {notification.prioridade === "alta"
+                                  ? "Urgente"
+                                  : notification.prioridade === "media"
+                                    ? "Importante"
+                                    : "Pendente"}
+                              </Badge>
+                            </div>
+
+                            <div className="space-y-1 text-sm text-gray-600">
+                              <p>
+                                <strong>Instrutor:</strong>{" "}
+                                {notification.instrutor_nome}
+                              </p>
+                              <p>
+                                <strong>Unidade:</strong>{" "}
+                                {notification.unidade_nome}
+                              </p>
+                              <p>
+                                <strong>Curso:</strong>{" "}
+                                {notification.curso_nome}
+                              </p>
+                              <p
+                                className={`font-medium ${getPriorityColor(
+                                  notification.prioridade,
+                                )}`}
+                              >
+                                <strong>Última chamada:</strong>{" "}
+                                {formatDate(notification.data_faltante)}
+                              </p>
+                            </div>
                           </div>
 
-                          <div className="space-y-1 text-sm text-gray-600">
-                            <p>
-                              <strong>Instrutor:</strong>{" "}
-                              {notification.instrutor_nome}
-                            </p>
-                            <p>
-                              <strong>Unidade:</strong>{" "}
-                              {notification.unidade_nome}
-                            </p>
-                            <p>
-                              <strong>Curso:</strong> {notification.curso_nome}
-                            </p>
-                            <p
-                              className={`font-medium ${getPriorityColor(
-                                notification.prioridade,
-                              )}`}
-                            >
-                              <strong>Última chamada:</strong>{" "}
-                              {formatDate(notification.data_faltante)}
-                            </p>
-                          </div>
+                          <AlertTriangle
+                            className={`h-5 w-5 ${getPriorityColor(
+                              notification.prioridade,
+                            )}`}
+                          />
                         </div>
 
-                        <AlertTriangle
-                          className={`h-5 w-5 ${getPriorityColor(
-                            notification.prioridade,
-                          )}`}
-                        />
-                      </div>
-
-                      <p className="text-xs text-gray-500 mt-3 italic">
-                        {notification.motivo}
-                      </p>
-                    </CardContent>
-                  </Card>
-                ))}
+                        <p className="text-xs text-gray-500 mt-3 italic">
+                          {notification.motivo}
+                        </p>
+                      </CardContent>
+                    </Card>
+                  ))}
               </div>
             )}
           </div>
@@ -1716,13 +1722,14 @@ const Dashboard = () => {
                 </div>
               ) : (
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {Array.isArray(pending) && pending.map((turma) => (
-                    <PendingAttendanceCard
-                      key={turma.turma_id}
-                      turma={turma}
-                      onComplete={markComplete}
-                    />
-                  ))}
+                  {Array.isArray(pending) &&
+                    pending.map((turma) => (
+                      <PendingAttendanceCard
+                        key={turma.turma_id}
+                        turma={turma}
+                        onComplete={markComplete}
+                      />
+                    ))}
                 </div>
               )}
             </CardContent>
@@ -1875,15 +1882,15 @@ const ChamadaManager = () => {
     try {
       const response = await axios.get(`${API}/justifications/reasons`);
       const data = response.data;
-      
+
       // Handle both array and object formats
       if (Array.isArray(data)) {
         setJustificationReasons(data);
-      } else if (typeof data === 'object' && data !== null) {
+      } else if (typeof data === "object" && data !== null) {
         // Convert object to array format
         const reasons = Object.entries(data).map(([code, label]) => ({
           code,
-          label
+          label,
         }));
         setJustificationReasons(reasons);
       } else {
@@ -1943,9 +1950,11 @@ const ChamadaManager = () => {
           ...presencas[selectedAlunoJustificativa.id],
           presente: false,
           justificativa: `Falta justificada: ${
-            justificationReasons.find(
-              (r) => r.code === justificationForm.reason_code,
-            )?.label || justificationForm.reason_code
+            (Array.isArray(justificationReasons) &&
+              justificationReasons.find(
+                (r) => r.code === justificationForm.reason_code,
+              )?.label) ||
+            justificationForm.reason_code
           }`,
         },
       };
@@ -1988,7 +1997,7 @@ const ChamadaManager = () => {
       console.log("Fetching alunos for turma:", turmaId);
       const response = await axios.get(`${API}/classes/${turmaId}/students`);
       console.log("Alunos response:", response.data);
-      
+
       // Garantir que response.data é um array
       const alunosData = Array.isArray(response.data) ? response.data : [];
       setAlunos(alunosData);
@@ -2286,58 +2295,61 @@ const ChamadaManager = () => {
               <SelectValue placeholder="Selecione uma turma" />
             </SelectTrigger>
             <SelectContent>
-              {Array.isArray(turmas) && turmas.map((turma) => (
-                <SelectItem key={turma.id} value={turma.id}>
-                  {turma.nome} - {turma.ciclo}
-                </SelectItem>
-              ))}
+              {Array.isArray(turmas) &&
+                turmas.map((turma) => (
+                  <SelectItem key={turma.id} value={turma.id}>
+                    {turma.nome} - {turma.ciclo}
+                  </SelectItem>
+                ))}
             </SelectContent>
           </Select>
         </div>
 
-        {selectedTurma && turmas.find((t) => t.id === selectedTurma) && (
-          <div className="grid grid-cols-3 gap-4">
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center space-x-2">
-                  <Users className="h-5 w-5 text-blue-500" />
-                  <div>
-                    <p className="text-sm text-gray-600">Total de Alunos</p>
-                    <p className="text-lg font-semibold">{alunos.length}</p>
+        {selectedTurma &&
+          Array.isArray(turmas) &&
+          turmas.find((t) => t.id === selectedTurma) && (
+            <div className="grid grid-cols-3 gap-4">
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center space-x-2">
+                    <Users className="h-5 w-5 text-blue-500" />
+                    <div>
+                      <p className="text-sm text-gray-600">Total de Alunos</p>
+                      <p className="text-lg font-semibold">{alunos.length}</p>
+                    </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
 
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center space-x-2">
-                  <CheckCircle className="h-5 w-5 text-green-500" />
-                  <div>
-                    <p className="text-sm text-gray-600">Presentes</p>
-                    <p className="text-lg font-semibold text-green-600">
-                      {totalPresentes}
-                    </p>
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center space-x-2">
+                    <CheckCircle className="h-5 w-5 text-green-500" />
+                    <div>
+                      <p className="text-sm text-gray-600">Presentes</p>
+                      <p className="text-lg font-semibold text-green-600">
+                        {totalPresentes}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
 
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center space-x-2">
-                  <AlertCircle className="h-5 w-5 text-red-500" />
-                  <div>
-                    <p className="text-sm text-gray-600">Faltas</p>
-                    <p className="text-lg font-semibold text-red-600">
-                      {totalFaltas}
-                    </p>
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center space-x-2">
+                    <AlertCircle className="h-5 w-5 text-red-500" />
+                    <div>
+                      <p className="text-sm text-gray-600">Faltas</p>
+                      <p className="text-lg font-semibold text-red-600">
+                        {totalFaltas}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
+                </CardContent>
+              </Card>
+            </div>
+          )}
 
         {loadingAlunos && (
           <div className="text-center py-8">
@@ -2355,75 +2367,76 @@ const ChamadaManager = () => {
               </h3>
 
               <div className="space-y-3">
-                {Array.isArray(alunos) && alunos.map((aluno, index) => (
-                  <Card
-                    key={aluno.id}
-                    className={`p-4 transition-all ${
-                      presencas[aluno.id]?.presente
-                        ? "border-green-200 bg-green-50"
-                        : "border-red-200 bg-red-50"
-                    }`}
-                  >
-                    <div className="flex items-start space-x-4">
-                      <div className="flex items-center space-x-3">
-                        <span className="font-mono text-sm text-gray-500 w-8">
-                          {String(index + 1).padStart(2, "0")}
-                        </span>
-                        <div className="flex items-center space-x-2">
-                          <Checkbox
-                            checked={presencas[aluno.id]?.presente || false}
-                            onCheckedChange={(checked) =>
-                              handlePresencaChange(aluno.id, checked)
-                            }
-                            className="w-5 h-5"
-                          />
-                          <label className="text-sm font-medium cursor-pointer">
-                            {presencas[aluno.id]?.presente
-                              ? "Presente"
-                              : "Falta"}
-                          </label>
-                        </div>
-                      </div>
-
-                      <div className="flex-1">
-                        <p className="font-medium">{aluno.nome}</p>
-                        <p className="text-sm text-gray-500">
-                          CPF: {aluno.cpf}
-                        </p>
-                      </div>
-
-                      {!presencas[aluno.id]?.presente && (
-                        <div className="flex-1 space-y-2">
-                          <div className="flex items-center justify-between">
-                            <Label className="text-sm">
-                              Justificativa da Falta
-                            </Label>
-                            <Button
-                              onClick={() => handleJustificarFalta(aluno)}
-                              variant="outline"
-                              size="sm"
-                              className="h-8"
-                            >
-                              <FileText className="h-4 w-4 mr-1" />
-                              Justificar com Documento
-                            </Button>
+                {Array.isArray(alunos) &&
+                  alunos.map((aluno, index) => (
+                    <Card
+                      key={aluno.id}
+                      className={`p-4 transition-all ${
+                        presencas[aluno.id]?.presente
+                          ? "border-green-200 bg-green-50"
+                          : "border-red-200 bg-red-50"
+                      }`}
+                    >
+                      <div className="flex items-start space-x-4">
+                        <div className="flex items-center space-x-3">
+                          <span className="font-mono text-sm text-gray-500 w-8">
+                            {String(index + 1).padStart(2, "0")}
+                          </span>
+                          <div className="flex items-center space-x-2">
+                            <Checkbox
+                              checked={presencas[aluno.id]?.presente || false}
+                              onCheckedChange={(checked) =>
+                                handlePresencaChange(aluno.id, checked)
+                              }
+                              className="w-5 h-5"
+                            />
+                            <label className="text-sm font-medium cursor-pointer">
+                              {presencas[aluno.id]?.presente
+                                ? "Presente"
+                                : "Falta"}
+                            </label>
                           </div>
-                          <Textarea
-                            placeholder="Digite o motivo da falta..."
-                            value={presencas[aluno.id]?.justificativa || ""}
-                            onChange={(e) =>
-                              handleJustificativaChange(
-                                aluno.id,
-                                e.target.value,
-                              )
-                            }
-                            className="min-h-16"
-                          />
                         </div>
-                      )}
-                    </div>
-                  </Card>
-                ))}
+
+                        <div className="flex-1">
+                          <p className="font-medium">{aluno.nome}</p>
+                          <p className="text-sm text-gray-500">
+                            CPF: {aluno.cpf}
+                          </p>
+                        </div>
+
+                        {!presencas[aluno.id]?.presente && (
+                          <div className="flex-1 space-y-2">
+                            <div className="flex items-center justify-between">
+                              <Label className="text-sm">
+                                Justificativa da Falta
+                              </Label>
+                              <Button
+                                onClick={() => handleJustificarFalta(aluno)}
+                                variant="outline"
+                                size="sm"
+                                className="h-8"
+                              >
+                                <FileText className="h-4 w-4 mr-1" />
+                                Justificar com Documento
+                              </Button>
+                            </div>
+                            <Textarea
+                              placeholder="Digite o motivo da falta..."
+                              value={presencas[aluno.id]?.justificativa || ""}
+                              onChange={(e) =>
+                                handleJustificativaChange(
+                                  aluno.id,
+                                  e.target.value,
+                                )
+                              }
+                              className="min-h-16"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    </Card>
+                  ))}
               </div>
             </div>
 
@@ -2534,11 +2547,12 @@ const ChamadaManager = () => {
                   <SelectValue placeholder="Selecione o motivo" />
                 </SelectTrigger>
                 <SelectContent>
-                  {Array.isArray(justificationReasons) && justificationReasons.map((reason) => (
-                    <SelectItem key={reason.code} value={reason.code}>
-                      {reason.label}
-                    </SelectItem>
-                  ))}
+                  {Array.isArray(justificationReasons) &&
+                    justificationReasons.map((reason) => (
+                      <SelectItem key={reason.code} value={reason.code}>
+                        {reason.label}
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             </div>
@@ -2654,19 +2668,24 @@ const UsuariosManager = () => {
         axios.get(`${API}/courses`),
       ]);
 
-      setUsuarios(usuariosRes.data);
-      setUnidades(unidadesRes.data);
-      setCursos(cursosRes.data);
+      setUsuarios(Array.isArray(usuariosRes.data) ? usuariosRes.data : []);
+      setUnidades(Array.isArray(unidadesRes.data) ? unidadesRes.data : []);
+      setCursos(Array.isArray(cursosRes.data) ? cursosRes.data : []);
 
       // Fetch pending users
       try {
         const pendingRes = await axios.get(`${API}/users/pending`);
-        setPendingUsers(pendingRes.data);
+        setPendingUsers(Array.isArray(pendingRes.data) ? pendingRes.data : []);
       } catch (error) {
         console.error("Error fetching pending users:", error);
+        setPendingUsers([]);
       }
     } catch (error) {
       console.error("Error fetching data:", error);
+      setUsuarios([]);
+      setUnidades([]);
+      setCursos([]);
+      setPendingUsers([]);
     } finally {
       setLoading(false);
     }
@@ -2691,10 +2710,15 @@ const UsuariosManager = () => {
         });
       }
 
+      // Fechar modal primeiro
       setIsDialogOpen(false);
-      setEditingUser(null);
-      resetForm();
-      fetchData();
+      
+      // Aguardar o modal fechar antes de atualizar estados
+      setTimeout(() => {
+        setEditingUser(null);
+        resetForm();
+        fetchData();
+      }, 100);
     } catch (error) {
       toast({
         title: editingUser
@@ -2818,26 +2842,27 @@ const UsuariosManager = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {Array.isArray(pendingUsers) && pendingUsers.map((user) => (
-                <div
-                  key={user.id}
-                  className="flex items-center justify-between p-4 border rounded-lg"
-                >
-                  <div>
-                    <p className="font-medium">{user.nome}</p>
-                    <p className="text-sm text-gray-500">
-                      {user.email} - {getUserTypeLabel(user.tipo)}
-                    </p>
-                  </div>
-                  <Button
-                    onClick={() => handleApproveUser(user.id)}
-                    className="bg-green-600 hover:bg-green-700"
+              {Array.isArray(pendingUsers) &&
+                pendingUsers.map((user) => (
+                  <div
+                    key={user.id}
+                    className="flex items-center justify-between p-4 border rounded-lg"
                   >
-                    <CheckCircle className="h-4 w-4 mr-2" />
-                    Aprovar
-                  </Button>
-                </div>
-              ))}
+                    <div>
+                      <p className="font-medium">{user.nome}</p>
+                      <p className="text-sm text-gray-500">
+                        {user.email} - {getUserTypeLabel(user.tipo)}
+                      </p>
+                    </div>
+                    <Button
+                      onClick={() => handleApproveUser(user.id)}
+                      className="bg-green-600 hover:bg-green-700"
+                    >
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                      Aprovar
+                    </Button>
+                  </div>
+                ))}
             </div>
           </CardContent>
         </Card>
@@ -2955,11 +2980,12 @@ const UsuariosManager = () => {
                             <SelectValue placeholder="Selecione a unidade" />
                           </SelectTrigger>
                           <SelectContent>
-                            {Array.isArray(unidades) && unidades.map((unidade) => (
-                              <SelectItem key={unidade.id} value={unidade.id}>
-                                {unidade.nome}
-                              </SelectItem>
-                            ))}
+                            {Array.isArray(unidades) &&
+                              unidades.map((unidade) => (
+                                <SelectItem key={unidade.id} value={unidade.id}>
+                                  {unidade.nome}
+                                </SelectItem>
+                              ))}
                           </SelectContent>
                         </Select>
                       </div>
@@ -2979,11 +3005,12 @@ const UsuariosManager = () => {
                               <SelectValue placeholder="Selecione o curso" />
                             </SelectTrigger>
                             <SelectContent>
-                              {Array.isArray(cursos) && cursos.map((curso) => (
-                                <SelectItem key={curso.id} value={curso.id}>
-                                  {curso.nome}
-                                </SelectItem>
-                              ))}
+                              {Array.isArray(cursos) &&
+                                cursos.map((curso) => (
+                                  <SelectItem key={curso.id} value={curso.id}>
+                                    {curso.nome}
+                                  </SelectItem>
+                                ))}
                             </SelectContent>
                           </Select>
                         </div>
@@ -3017,55 +3044,58 @@ const UsuariosManager = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {Array.isArray(usuarios) && usuarios.map((usuario) => (
-                  <TableRow key={usuario.id}>
-                    <TableCell className="font-medium">
-                      {usuario.nome}
-                    </TableCell>
-                    <TableCell>{usuario.email}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline">
-                        {getUserTypeLabel(usuario.tipo)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{usuario.telefone || "-"}</TableCell>
-                    <TableCell>
-                      <Badge variant={usuario.ativo ? "default" : "secondary"}>
-                        {usuario.ativo ? "Ativo" : "Inativo"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex space-x-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleEdit(usuario)}
+                {Array.isArray(usuarios) &&
+                  usuarios.map((usuario) => (
+                    <TableRow key={usuario.id}>
+                      <TableCell className="font-medium">
+                        {usuario.nome}
+                      </TableCell>
+                      <TableCell>{usuario.email}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline">
+                          {getUserTypeLabel(usuario.tipo)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{usuario.telefone || "-"}</TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={usuario.ativo ? "default" : "secondary"}
                         >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() =>
-                            handleResetPassword(usuario.id, usuario.nome)
-                          }
-                          className="text-blue-600 hover:text-blue-700"
-                          title="Resetar Senha"
-                        >
-                          <Key className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleDelete(usuario.id)}
-                          className="text-red-600 hover:text-red-700"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                          {usuario.ativo ? "Ativo" : "Inativo"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex space-x-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleEdit(usuario)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                              handleResetPassword(usuario.id, usuario.nome)
+                            }
+                            className="text-blue-600 hover:text-blue-700"
+                            title="Resetar Senha"
+                          >
+                            <Key className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDelete(usuario.id)}
+                            className="text-red-600 hover:text-red-700"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
               </TableBody>
             </Table>
           </div>
@@ -3129,8 +3159,12 @@ const TurmasManager = () => {
 
       // ✅ COMBINAR INSTRUTORES E PEDAGOGOS para seleção de responsável
       // Garantir que os dados sejam arrays
-      const instrutores = Array.isArray(instrutoresRes.data) ? instrutoresRes.data : [];
-      const pedagogos = Array.isArray(pedagogosRes.data) ? pedagogosRes.data : [];
+      const instrutores = Array.isArray(instrutoresRes.data)
+        ? instrutoresRes.data
+        : [];
+      const pedagogos = Array.isArray(pedagogosRes.data)
+        ? pedagogosRes.data
+        : [];
       const todosUsuarios = [
         ...instrutores.map((u) => ({ ...u, tipo_label: "Instrutor" })),
         ...pedagogos.map((u) => ({ ...u, tipo_label: "Pedagogo" })),
@@ -3185,10 +3219,15 @@ const TurmasManager = () => {
         });
       }
 
+      // Fechar modal primeiro
       setIsDialogOpen(false);
-      setEditingTurma(null);
-      resetForm();
-      fetchData();
+      
+      // Aguardar o modal fechar antes de atualizar estados
+      setTimeout(() => {
+        setEditingTurma(null);
+        resetForm();
+        fetchData();
+      }, 100);
     } catch (error) {
       toast({
         title: editingTurma ? "Erro ao atualizar turma" : "Erro ao criar turma",
@@ -3223,11 +3262,17 @@ const TurmasManager = () => {
 
   const handleViewTurma = (turma) => {
     const unidadeNome =
-      unidades.find((u) => u.id === turma.unidade_id)?.nome || "N/A";
+      (Array.isArray(unidades) &&
+        unidades.find((u) => u.id === turma.unidade_id)?.nome) ||
+      "N/A";
     const cursoNome =
-      cursos.find((c) => c.id === turma.curso_id)?.nome || "N/A";
+      (Array.isArray(cursos) &&
+        cursos.find((c) => c.id === turma.curso_id)?.nome) ||
+      "N/A";
     const instrutorNome =
-      usuarios.find((u) => u.id === turma.instrutor_id)?.nome || "N/A";
+      (Array.isArray(usuarios) &&
+        usuarios.find((u) => u.id === turma.instrutor_id)?.nome) ||
+      "N/A";
 
     alert(
       `📋 DETALHES DA TURMA\n\n` +
@@ -3455,18 +3500,20 @@ const TurmasManager = () => {
                           <SelectValue placeholder="Selecione a unidade" />
                         </SelectTrigger>
                         <SelectContent>
-                          {Array.isArray(unidades) && unidades.map((unidade) => (
-                            <SelectItem key={unidade.id} value={unidade.id}>
-                              {unidade.nome}
-                            </SelectItem>
-                          ))}
+                          {Array.isArray(unidades) &&
+                            unidades.map((unidade) => (
+                              <SelectItem key={unidade.id} value={unidade.id}>
+                                {unidade.nome}
+                              </SelectItem>
+                            ))}
                         </SelectContent>
                       </Select>
                     ) : (
                       <Input
                         value={
-                          unidades.find((u) => u.id === formData.unidade_id)
-                            ?.nome ||
+                          (Array.isArray(unidades) &&
+                            unidades.find((u) => u.id === formData.unidade_id)
+                              ?.nome) ||
                           user?.unidade_nome ||
                           "Sua unidade"
                         }
@@ -3494,18 +3541,20 @@ const TurmasManager = () => {
                           <SelectValue placeholder="Selecione o curso" />
                         </SelectTrigger>
                         <SelectContent>
-                          {Array.isArray(cursos) && cursos.map((curso) => (
-                            <SelectItem key={curso.id} value={curso.id}>
-                              {curso.nome}
-                            </SelectItem>
-                          ))}
+                          {Array.isArray(cursos) &&
+                            cursos.map((curso) => (
+                              <SelectItem key={curso.id} value={curso.id}>
+                                {curso.nome}
+                              </SelectItem>
+                            ))}
                         </SelectContent>
                       </Select>
                     ) : (
                       <Input
                         value={
-                          cursos.find((c) => c.id === formData.curso_id)
-                            ?.nome ||
+                          (Array.isArray(cursos) &&
+                            cursos.find((c) => c.id === formData.curso_id)
+                              ?.nome) ||
                           user?.curso_nome ||
                           "Seu curso"
                         }
@@ -3534,11 +3583,12 @@ const TurmasManager = () => {
                         <SelectValue placeholder="Selecione o responsável" />
                       </SelectTrigger>
                       <SelectContent>
-                        {Array.isArray(usuarios) && usuarios.map((usuario) => (
-                          <SelectItem key={usuario.id} value={usuario.id}>
-                            {usuario.nome} ({usuario.tipo_label})
-                          </SelectItem>
-                        ))}
+                        {Array.isArray(usuarios) &&
+                          usuarios.map((usuario) => (
+                            <SelectItem key={usuario.id} value={usuario.id}>
+                              {usuario.nome} ({usuario.tipo_label})
+                            </SelectItem>
+                          ))}
                       </SelectContent>
                     </Select>
                   ) : (
@@ -3681,79 +3731,82 @@ const TurmasManager = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {Array.isArray(turmas) && turmas.map((turma) => (
-                <TableRow key={turma.id}>
-                  <TableCell className="font-medium">{turma.nome}</TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={
-                        turma.tipo_turma === "extensao"
-                          ? "destructive"
-                          : "default"
-                      }
-                    >
-                      {turma.tipo_turma === "extensao" ? "Extensão" : "Regular"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>{turma.ciclo}</TableCell>
-                  <TableCell>
-                    {new Date(turma.data_inicio).toLocaleDateString()} -{" "}
-                    {new Date(turma.data_fim).toLocaleDateString()}
-                  </TableCell>
-                  <TableCell>
-                    {turma.horario_inicio} - {turma.horario_fim}
-                  </TableCell>
-                  <TableCell>
-                    {turma.vagas_ocupadas}/{turma.vagas_total}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={turma.ativo ? "default" : "secondary"}>
-                      {turma.ativo ? "Ativa" : "Inativa"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex space-x-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleViewTurma(turma)}
-                        title="Visualizar detalhes"
+              {Array.isArray(turmas) &&
+                turmas.map((turma) => (
+                  <TableRow key={turma.id}>
+                    <TableCell className="font-medium">{turma.nome}</TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={
+                          turma.tipo_turma === "extensao"
+                            ? "destructive"
+                            : "default"
+                        }
                       >
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleManageAlunos(turma)}
-                        title="Gerenciar alunos"
-                        className="text-green-600 hover:text-green-700"
-                      >
-                        <UserPlus className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleEdit(turma)}
-                        title="Editar turma"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      {/* 🗑️ BOTÃO DELETAR TURMA - Apenas para Admin */}
-                      {user?.tipo === "admin" && (
+                        {turma.tipo_turma === "extensao"
+                          ? "Extensão"
+                          : "Regular"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>{turma.ciclo}</TableCell>
+                    <TableCell>
+                      {new Date(turma.data_inicio).toLocaleDateString()} -{" "}
+                      {new Date(turma.data_fim).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell>
+                      {turma.horario_inicio} - {turma.horario_fim}
+                    </TableCell>
+                    <TableCell>
+                      {turma.vagas_ocupadas}/{turma.vagas_total}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={turma.ativo ? "default" : "secondary"}>
+                        {turma.ativo ? "Ativa" : "Inativa"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex space-x-2">
                         <Button
-                          variant="destructive"
+                          variant="outline"
                           size="sm"
-                          onClick={() => handleDeleteTurma(turma)}
-                          title="Deletar turma"
-                          className="text-red-600 hover:text-red-700 border-red-300 hover:bg-red-50"
+                          onClick={() => handleViewTurma(turma)}
+                          title="Visualizar detalhes"
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Eye className="h-4 w-4" />
                         </Button>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleManageAlunos(turma)}
+                          title="Gerenciar alunos"
+                          className="text-green-600 hover:text-green-700"
+                        >
+                          <UserPlus className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEdit(turma)}
+                          title="Editar turma"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        {/* 🗑️ BOTÃO DELETAR TURMA - Apenas para Admin */}
+                        {user?.tipo === "admin" && (
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => handleDeleteTurma(turma)}
+                            title="Deletar turma"
+                            className="text-red-600 hover:text-red-700 border-red-300 hover:bg-red-50"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
             </TableBody>
           </Table>
         </div>
@@ -4450,11 +4503,12 @@ const RelatoriosManager = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todas as Unidades</SelectItem>
-                  {Array.isArray(unidades) && unidades.map((unidade) => (
-                    <SelectItem key={unidade.id} value={unidade.id}>
-                      {unidade.nome}
-                    </SelectItem>
-                  ))}
+                  {Array.isArray(unidades) &&
+                    unidades.map((unidade) => (
+                      <SelectItem key={unidade.id} value={unidade.id}>
+                        {unidade.nome}
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             </div>
@@ -4474,11 +4528,12 @@ const RelatoriosManager = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todos os Cursos</SelectItem>
-                  {Array.isArray(cursos) && cursos.map((curso) => (
-                    <SelectItem key={curso.id} value={curso.id}>
-                      {curso.nome}
-                    </SelectItem>
-                  ))}
+                  {Array.isArray(cursos) &&
+                    cursos.map((curso) => (
+                      <SelectItem key={curso.id} value={curso.id}>
+                        {curso.nome}
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             </div>
@@ -4498,11 +4553,12 @@ const RelatoriosManager = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todas as Turmas</SelectItem>
-                  {Array.isArray(turmas) && turmas.map((turma) => (
-                    <SelectItem key={turma.id} value={turma.id}>
-                      {turma.nome}
-                    </SelectItem>
-                  ))}
+                  {Array.isArray(turmas) &&
+                    turmas.map((turma) => (
+                      <SelectItem key={turma.id} value={turma.id}>
+                        {turma.nome}
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             </div>
@@ -4843,11 +4899,12 @@ const AlunosManager = () => {
       console.log("🔍 Buscando alunos...");
       const response = await axios.get(`${API}/students`);
       console.log("✅ Alunos recebidos:", response.data.length, "alunos");
-      setAlunos(response.data);
+      setAlunos(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
       console.error("❌ Erro ao buscar alunos:", error);
       console.error("Status:", error.response?.status);
       console.error("Mensagem:", error.response?.data);
+      setAlunos([]);
 
       // Mostrar erro para o usuário
       toast({
@@ -4868,9 +4925,10 @@ const AlunosManager = () => {
       console.log("🔍 Buscando turmas...");
       const response = await axios.get(`${API}/classes`);
       console.log("✅ Turmas recebidas:", response.data.length, "turmas");
-      setTurmas(response.data);
+      setTurmas(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
       console.error("❌ Erro ao buscar turmas:", error);
+      setTurmas([]);
       toast({
         title: "Erro ao carregar turmas",
         description: "Não foi possível carregar a lista de turmas",
@@ -4950,10 +5008,15 @@ const AlunosManager = () => {
         }
       }
 
+      // Fechar modal primeiro
       setIsDialogOpen(false);
-      setEditingAluno(null);
-      resetForm();
-      fetchAlunos();
+      
+      // Aguardar o modal fechar antes de atualizar estados
+      setTimeout(() => {
+        setEditingAluno(null);
+        resetForm();
+        fetchAlunos();
+      }, 100);
     } catch (error) {
       toast({
         title: editingAluno ? "Erro ao atualizar aluno" : "Erro ao criar aluno",
@@ -5460,12 +5523,13 @@ Carlos Pereira,111.222.333-44,01/01/1988,carlos@email.com,11777777777,11.122.233
                           <SelectItem value="sem_turma">
                             Sem turma (não alocado)
                           </SelectItem>
-                          {Array.isArray(turmas) && turmas.map((turma) => (
-                            <SelectItem key={turma.id} value={turma.id}>
-                              {turma.nome} -{" "}
-                              {turma.curso_nome || "Curso não informado"}
-                            </SelectItem>
-                          ))}
+                          {Array.isArray(turmas) &&
+                            turmas.map((turma) => (
+                              <SelectItem key={turma.id} value={turma.id}>
+                                {turma.nome} -{" "}
+                                {turma.curso_nome || "Curso não informado"}
+                              </SelectItem>
+                            ))}
                         </SelectContent>
                       </Select>
                       <p className="text-xs text-green-600">
@@ -5704,69 +5768,70 @@ Carlos Pereira,111.222.333-44,01/01/1988,carlos@email.com,11777777777,11.122.233
               </TableRow>
             </TableHeader>
             <TableBody>
-              {Array.isArray(alunos) && alunos.map((aluno) => (
-                <TableRow key={aluno.id}>
-                  <TableCell className="font-medium">{aluno.nome}</TableCell>
-                  <TableCell>{aluno.cpf}</TableCell>
-                  <TableCell className="text-center font-medium">
-                    {aluno.idade ? `${aluno.idade} anos` : "N/A"}
-                  </TableCell>
-                  <TableCell>
-                    <div className="space-y-1">
-                      {aluno.telefone && (
-                        <div className="flex items-center text-sm">
-                          <Phone className="h-3 w-3 mr-1 text-gray-400" />
-                          {aluno.telefone}
-                        </div>
-                      )}
-                      {aluno.email && (
-                        <div className="flex items-center text-sm">
-                          <Mail className="h-3 w-3 mr-1 text-gray-400" />
-                          {aluno.email}
-                        </div>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={getStatusColor(aluno.status)}>
-                      {getStatusLabel(aluno.status)}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex space-x-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleViewAluno(aluno)}
-                        title="Visualizar detalhes"
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      {aluno.status !== "desistente" && (
+              {Array.isArray(alunos) &&
+                alunos.map((aluno) => (
+                  <TableRow key={aluno.id}>
+                    <TableCell className="font-medium">{aluno.nome}</TableCell>
+                    <TableCell>{aluno.cpf}</TableCell>
+                    <TableCell className="text-center font-medium">
+                      {aluno.idade ? `${aluno.idade} anos` : "N/A"}
+                    </TableCell>
+                    <TableCell>
+                      <div className="space-y-1">
+                        {aluno.telefone && (
+                          <div className="flex items-center text-sm">
+                            <Phone className="h-3 w-3 mr-1 text-gray-400" />
+                            {aluno.telefone}
+                          </div>
+                        )}
+                        {aluno.email && (
+                          <div className="flex items-center text-sm">
+                            <Mail className="h-3 w-3 mr-1 text-gray-400" />
+                            {aluno.email}
+                          </div>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={getStatusColor(aluno.status)}>
+                        {getStatusLabel(aluno.status)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex space-x-2">
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => handleEdit(aluno)}
-                          title="Editar aluno"
+                          onClick={() => handleViewAluno(aluno)}
+                          title="Visualizar detalhes"
                         >
-                          <Edit className="h-4 w-4" />
+                          <Eye className="h-4 w-4" />
                         </Button>
-                      )}
-                      {aluno.status === "ativo" && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleMarkAsDropout(aluno)}
-                          title="Registrar desistência"
-                          className="text-red-600 border-red-600 hover:bg-red-50"
-                        >
-                          <UserX className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
+                        {aluno.status !== "desistente" && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleEdit(aluno)}
+                            title="Editar aluno"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {aluno.status === "ativo" && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleMarkAsDropout(aluno)}
+                            title="Registrar desistência"
+                            className="text-red-600 border-red-600 hover:bg-red-50"
+                          >
+                            <UserX className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
             </TableBody>
           </Table>
         </div>
@@ -6397,77 +6462,78 @@ Carlos Pereira,111.222.333-44,01/01/1988,carlos@email.com,11777777777,11.122.233
                       </div>
                     ) : (
                       <div className="space-y-4">
-                        {Array.isArray(studentJustifications) && studentJustifications.map((justification) => (
-                          <Card
-                            key={justification.id}
-                            className="border-l-4 border-l-blue-500"
-                          >
-                            <CardContent className="pt-4">
-                              <div className="flex justify-between items-start">
-                                <div className="flex-1">
-                                  <div className="flex items-center space-x-2 mb-2">
-                                    <Badge variant="outline">
-                                      {justification.reason_label}
-                                    </Badge>
-                                    <span className="text-sm text-gray-500">
-                                      {new Date(
-                                        justification.created_at,
-                                      ).toLocaleDateString("pt-BR")}
-                                    </span>
+                        {Array.isArray(studentJustifications) &&
+                          studentJustifications.map((justification) => (
+                            <Card
+                              key={justification.id}
+                              className="border-l-4 border-l-blue-500"
+                            >
+                              <CardContent className="pt-4">
+                                <div className="flex justify-between items-start">
+                                  <div className="flex-1">
+                                    <div className="flex items-center space-x-2 mb-2">
+                                      <Badge variant="outline">
+                                        {justification.reason_label}
+                                      </Badge>
+                                      <span className="text-sm text-gray-500">
+                                        {new Date(
+                                          justification.created_at,
+                                        ).toLocaleDateString("pt-BR")}
+                                      </span>
+                                    </div>
+
+                                    {justification.observations && (
+                                      <div className="mb-3">
+                                        <Label className="text-sm font-medium text-gray-600">
+                                          Observações:
+                                        </Label>
+                                        <p className="text-sm bg-gray-50 p-2 rounded border">
+                                          {justification.observations}
+                                        </p>
+                                      </div>
+                                    )}
+
+                                    {justification.attendance_id && (
+                                      <div className="text-xs text-gray-500">
+                                        Vinculada à chamada:{" "}
+                                        {justification.attendance_id}
+                                      </div>
+                                    )}
                                   </div>
 
-                                  {justification.observations && (
-                                    <div className="mb-3">
-                                      <Label className="text-sm font-medium text-gray-600">
-                                        Observações:
-                                      </Label>
-                                      <p className="text-sm bg-gray-50 p-2 rounded border">
-                                        {justification.observations}
-                                      </p>
-                                    </div>
-                                  )}
+                                  <div className="flex space-x-2 ml-4">
+                                    {justification.has_file && (
+                                      <Button
+                                        onClick={() =>
+                                          downloadJustificationFile(
+                                            justification.id,
+                                            justification.filename,
+                                          )
+                                        }
+                                        variant="outline"
+                                        size="sm"
+                                        title="Baixar documento"
+                                      >
+                                        <Download className="h-4 w-4" />
+                                      </Button>
+                                    )}
 
-                                  {justification.attendance_id && (
-                                    <div className="text-xs text-gray-500">
-                                      Vinculada à chamada:{" "}
-                                      {justification.attendance_id}
-                                    </div>
-                                  )}
-                                </div>
-
-                                <div className="flex space-x-2 ml-4">
-                                  {justification.has_file && (
                                     <Button
                                       onClick={() =>
-                                        downloadJustificationFile(
-                                          justification.id,
-                                          justification.filename,
-                                        )
+                                        deleteJustification(justification.id)
                                       }
                                       variant="outline"
                                       size="sm"
-                                      title="Baixar documento"
+                                      className="text-red-600 border-red-600 hover:bg-red-50"
+                                      title="Remover justificativa"
                                     >
-                                      <Download className="h-4 w-4" />
+                                      <Trash2 className="h-4 w-4" />
                                     </Button>
-                                  )}
-
-                                  <Button
-                                    onClick={() =>
-                                      deleteJustification(justification.id)
-                                    }
-                                    variant="outline"
-                                    size="sm"
-                                    className="text-red-600 border-red-600 hover:bg-red-50"
-                                    title="Remover justificativa"
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
+                                  </div>
                                 </div>
-                              </div>
-                            </CardContent>
-                          </Card>
-                        ))}
+                              </CardContent>
+                            </Card>
+                          ))}
                       </div>
                     )}
                   </CardContent>
@@ -6722,58 +6788,61 @@ const UnidadesManager = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {Array.isArray(unidades) && unidades.map((unidade) => (
-                <TableRow key={unidade.id}>
-                  <TableCell className="font-medium">{unidade.nome}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center">
-                      <MapPin className="h-4 w-4 mr-1 text-gray-400" />
-                      {unidade.endereco}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="space-y-1">
-                      {unidade.telefone && (
-                        <div className="flex items-center text-sm">
-                          <Phone className="h-3 w-3 mr-1 text-gray-400" />
-                          {unidade.telefone}
-                        </div>
-                      )}
-                      {unidade.email && (
-                        <div className="flex items-center text-sm">
-                          <Mail className="h-3 w-3 mr-1 text-gray-400" />
-                          {unidade.email}
-                        </div>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell>{unidade.responsavel || "-"}</TableCell>
-                  <TableCell>
-                    <Badge variant={unidade.ativo ? "default" : "secondary"}>
-                      {unidade.ativo ? "Ativa" : "Inativa"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex space-x-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleEdit(unidade)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDelete(unidade.id)}
-                        className="text-red-600 hover:text-red-700"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
+              {Array.isArray(unidades) &&
+                unidades.map((unidade) => (
+                  <TableRow key={unidade.id}>
+                    <TableCell className="font-medium">
+                      {unidade.nome}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center">
+                        <MapPin className="h-4 w-4 mr-1 text-gray-400" />
+                        {unidade.endereco}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="space-y-1">
+                        {unidade.telefone && (
+                          <div className="flex items-center text-sm">
+                            <Phone className="h-3 w-3 mr-1 text-gray-400" />
+                            {unidade.telefone}
+                          </div>
+                        )}
+                        {unidade.email && (
+                          <div className="flex items-center text-sm">
+                            <Mail className="h-3 w-3 mr-1 text-gray-400" />
+                            {unidade.email}
+                          </div>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>{unidade.responsavel || "-"}</TableCell>
+                    <TableCell>
+                      <Badge variant={unidade.ativo ? "default" : "secondary"}>
+                        {unidade.ativo ? "Ativa" : "Inativa"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex space-x-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEdit(unidade)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDelete(unidade.id)}
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
             </TableBody>
           </Table>
         </div>
@@ -7076,49 +7145,50 @@ const CursosManager = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {Array.isArray(cursos) && cursos.map((curso) => (
-                <TableRow key={curso.id}>
-                  <TableCell className="font-medium">{curso.nome}</TableCell>
-                  <TableCell>
-                    {curso.categoria && (
-                      <Badge variant="outline">{curso.categoria}</Badge>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center">
-                      <Clock className="h-4 w-4 mr-1 text-gray-400" />
-                      {curso.carga_horaria}h
-                    </div>
-                  </TableCell>
-                  <TableCell className="max-w-xs truncate">
-                    {curso.descricao || "-"}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={curso.ativo ? "default" : "secondary"}>
-                      {curso.ativo ? "Ativo" : "Inativo"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex space-x-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleEdit(curso)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDelete(curso.id)}
-                        className="text-red-600 hover:text-red-700"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
+              {Array.isArray(cursos) &&
+                cursos.map((curso) => (
+                  <TableRow key={curso.id}>
+                    <TableCell className="font-medium">{curso.nome}</TableCell>
+                    <TableCell>
+                      {curso.categoria && (
+                        <Badge variant="outline">{curso.categoria}</Badge>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center">
+                        <Clock className="h-4 w-4 mr-1 text-gray-400" />
+                        {curso.carga_horaria}h
+                      </div>
+                    </TableCell>
+                    <TableCell className="max-w-xs truncate">
+                      {curso.descricao || "-"}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={curso.ativo ? "default" : "secondary"}>
+                        {curso.ativo ? "Ativo" : "Inativo"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex space-x-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEdit(curso)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDelete(curso.id)}
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
             </TableBody>
           </Table>
         </div>
