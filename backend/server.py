@@ -32,6 +32,7 @@ load_dotenv(ROOT_DIR / '.env')
 # -------------------------
 # Criação do FastAPI app
 # -------------------------
+# 🔄 VERSÃO ATUALIZADA: Suporte para múltiplos instrutores (instrutor_ids array)
 app = FastAPI(title="Sistema de Controle de Presença - IOS")
 
 # Middleware CORS - configurado para desenvolvimento e produção
