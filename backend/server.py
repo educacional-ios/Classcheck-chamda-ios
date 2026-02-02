@@ -819,10 +819,16 @@ async def get_users(
     # 🔤 Ordenar por nome em ordem alfabética
     users = await db.usuarios.find(query).sort("nome", 1).skip(skip).limit(limit).to_list(limit)
     
+    print(f"🔍 DEBUG: Total de usuários encontrados no banco: {len(users)}")
+    
     # Enriquecer dados com nomes de unidade e curso
     result_users = []
     for user in users:
-        user_response = UserResponse(**user)
+        try:
+            user_response = UserResponse(**user)
+        except Exception as e:
+            print(f"⚠️ Erro ao criar UserResponse para {user.get('email')}: {e}")
+            continue
         
         # Buscar nome da unidade
         if user.get('unidade_id'):
