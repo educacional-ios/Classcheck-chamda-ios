@@ -107,12 +107,15 @@ print(f"🌍 Ambiente: RENDER={os.environ.get('RENDER')}, RAILWAY={os.environ.ge
 # -------------------------
 # MongoDB connection
 # -------------------------
-# NOVO BANCO: chamada-prod
-username = quote_plus("educacional_db_user")
-password = quote_plus("qpvR7mlOHSoxwvQ8")
+# 🔄 USA VARIÁVEIS DE AMBIENTE (configuradas no Render/Railway)
+MONGO_URL = os.environ.get(
+    "MONGO_URL",
+    "mongodb+srv://educacional_db_user:TtCYD8qdhk26NUgf@cluster0.ukezihf.mongodb.net/?appName=Cluster0"
+)
+DB_NAME = os.environ.get("DB_NAME", "IOS-SISTEMA-CHAMADA")
 
-MONGO_URL = f"mongodb+srv://{username}:{password}@chamada-prod.nr10evs.mongodb.net/IOS-SISTEMA-CHAMADA?retryWrites=true&w=majority&appName=chamada-prod"
-DB_NAME = "IOS-SISTEMA-CHAMADA"
+print(f"🔗 MongoDB: {MONGO_URL.split('@')[1].split('/')[0] if '@' in MONGO_URL else 'LOCAL'}")
+print(f"📂 Database: {DB_NAME}")
 
 client = AsyncIOMotorClient(MONGO_URL)
 db = client[DB_NAME]
@@ -5329,6 +5332,45 @@ async def get_teacher_stats(current_user: dict = Depends(get_current_user)):
             "desistentes": 0,
             "chamadas_hoje": 0,
             "error": str(e)
+        }
+
+# 🔍 ENDPOINT DE DIAGNÓSTICO - Verifica qual MongoDB está conectado
+@api_router.get("/diagnostic/database-info")
+async def database_diagnostic():
+    """Endpoint para diagnosticar qual MongoDB está conectado"""
+    try:
+        mongo_url = os.environ.get("MONGO_URL", "NOT_SET")
+        db_name = os.environ.get("DB_NAME", "NOT_SET")
+        
+        # Contar turmas
+        total_turmas = await db.turmas.count_documents({})
+        
+        # Pegar 3 turmas de exemplo
+        turmas_exemplo = []
+        async for turma in db.turmas.find({}).limit(3):
+            turmas_exemplo.append({
+                "nome": turma.get("nome"),
+                "instrutor_id": turma.get("instrutor_id"),
+                "instrutor_ids": turma.get("instrutor_ids")
+            })
+        
+        # Verificar se tem turma DEMO
+        demo = await db.turmas.find_one({"nome": {"$regex": "DEMO", "$options": "i"}})
+        
+        return {
+            "mongo_url_host": mongo_url.split("@")[1].split("/")[0] if "@" in mongo_url else "UNKNOWN",
+            "database_name": db_name,
+            "total_turmas": total_turmas,
+            "tem_turma_demo": demo is not None,
+            "turmas_exemplo": turmas_exemplo,
+            "expected_turmas": 21,
+            "status": "✅ CORRETO" if total_turmas == 21 and demo else "❌ BANCO ERRADO"
+        }
+    except Exception as e:
+        return {
+            "error": str(e),
+            "mongo_url_env": os.environ.get("MONGO_URL", "NOT_SET")[:50] + "...",
+            "db_name_env": os.environ.get("DB_NAME", "NOT_SET")
         }
 
 if __name__ == "__main__":
