@@ -2330,8 +2330,8 @@ async def get_turmas(current_user: UserResponse = Depends(get_current_user)):
         query = {"ativo": True}
         
         if current_user.tipo == "instrutor":
-            # Instrutor vê suas próprias turmas do curso
-            query["instrutor_id"] = current_user.id
+            # Instrutor vê suas próprias turmas (onde está na lista de instrutores)
+            query["instrutor_ids"] = current_user.id
             if getattr(current_user, 'curso_id', None):
                 query["curso_id"] = getattr(current_user, 'curso_id', None)
             if getattr(current_user, 'unidade_id', None):
