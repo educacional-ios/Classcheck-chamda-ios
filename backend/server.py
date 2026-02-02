@@ -5376,6 +5376,25 @@ async def database_diagnostic():
             "db_name_env": os.environ.get("DB_NAME", "NOT_SET")
         }
 
+@api_router.get("/debug/visibility")
+async def debug_visibility(current_user: UserResponse = Depends(get_current_user)):
+    query = {"ativo": True}
+    if current_user.tipo == "instrutor":
+        query["$or"] = [
+            {"instrutor_ids": current_user.id},
+            {"instrutor_id": current_user.id}
+        ]
+    
+    count = await db.turmas.count_documents(query)
+    
+    return {
+        "user_id": current_user.id,
+        "user_tipo": current_user.tipo,
+        "generated_query": str(query),
+        "count_results": count,
+        "version": "1.2 - Fix Visibility"
+    }
+
 if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", 8000))
