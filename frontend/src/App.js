@@ -3518,7 +3518,7 @@ const TurmasManager = () => {
                 Nova Turma
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl">
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>
                   {editingTurma ? "Editar Turma" : "Criar Nova Turma"}
@@ -3529,7 +3529,7 @@ const TurmasManager = () => {
                     : "Preencha os dados para criar uma nova turma"}
                 </DialogDescription>
               </DialogHeader>
-              <form onSubmit={handleSubmit} className="space-y-4">
+              <form onSubmit={handleSubmit} className="space-y-4 pb-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="nome">Nome da Turma</Label>
