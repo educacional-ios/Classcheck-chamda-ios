@@ -816,7 +816,8 @@ async def get_users(
     if status:
         query["status"] = status
         
-    users = await db.usuarios.find(query).skip(skip).limit(limit).to_list(limit)
+    # 🔤 Ordenar por nome em ordem alfabética
+    users = await db.usuarios.find(query).sort("nome", 1).skip(skip).limit(limit).to_list(limit)
     
     # Enriquecer dados com nomes de unidade e curso
     result_users = []
@@ -843,7 +844,8 @@ async def get_users(
 async def get_pending_users(current_user: UserResponse = Depends(get_current_user)):
     check_admin_permission(current_user)
     
-    users = await db.usuarios.find({"status": "pendente"}).to_list(100)
+    # 🔤 Ordenar por nome em ordem alfabética
+    users = await db.usuarios.find({"status": "pendente"}).sort("nome", 1).to_list(100)
     return [UserResponse(**user) for user in users]
 
 @api_router.get("/users/{user_id}", response_model=UserResponse)
