@@ -3133,9 +3133,14 @@ const TurmasManager = () => {
     tipo_turma: "regular",
   });
   const { toast } = useToast();
+  const isMountedRef = React.useRef(true);
 
   useEffect(() => {
+    isMountedRef.current = true;
     fetchData();
+    return () => {
+      isMountedRef.current = false;
+    };
   }, []);
 
   const fetchData = async () => {
@@ -3178,27 +3183,33 @@ const TurmasManager = () => {
       console.log("Todos Usuários:", todosUsuarios);
       console.log("Alunos:", alunosRes.data);
 
-      // Garantir que todos os dados sejam arrays
-      setTurmas(Array.isArray(turmasRes.data) ? turmasRes.data : []);
-      setUnidades(Array.isArray(unidadesRes.data) ? unidadesRes.data : []);
-      setCursos(Array.isArray(cursosRes.data) ? cursosRes.data : []);
-      setUsuarios(todosUsuarios); // ✅ Usar lista combinada
-      setAlunos(Array.isArray(alunosRes.data) ? alunosRes.data : []);
+      // Garantir que todos os dados sejam arrays e só atualizar se componente ainda estiver montado
+      if (isMountedRef.current) {
+        setTurmas(Array.isArray(turmasRes.data) ? turmasRes.data : []);
+        setUnidades(Array.isArray(unidadesRes.data) ? unidadesRes.data : []);
+        setCursos(Array.isArray(cursosRes.data) ? cursosRes.data : []);
+        setUsuarios(todosUsuarios); // ✅ Usar lista combinada
+        setAlunos(Array.isArray(alunosRes.data) ? alunosRes.data : []);
+      }
     } catch (error) {
       console.error("Error fetching data:", error);
       // Garantir que todos os estados sejam arrays vazios em caso de erro
-      setTurmas([]);
-      setUnidades([]);
-      setCursos([]);
-      setUsuarios([]);
-      setAlunos([]);
-      toast({
-        title: "Erro ao carregar dados",
-        description: "Não foi possível carregar os dados necessários",
-        variant: "destructive",
-      });
+      if (isMountedRef.current) {
+        setTurmas([]);
+        setUnidades([]);
+        setCursos([]);
+        setUsuarios([]);
+        setAlunos([]);
+        toast({
+          title: "Erro ao carregar dados",
+          description: "Não foi possível carregar os dados necessários",
+          variant: "destructive",
+        });
+      }
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
     }
   };
 
@@ -3289,33 +3300,39 @@ const TurmasManager = () => {
   };
 
   const handleEdit = (turma) => {
-    setEditingTurma(turma);
-    setFormData({
-      nome: turma.nome,
-      unidade_id: turma.unidade_id,
-      curso_id: turma.curso_id,
-      instrutor_id: turma.instrutor_id,
-      data_inicio: turma.data_inicio,
-      data_fim: turma.data_fim,
-      horario_inicio: turma.horario_inicio,
-      horario_fim: turma.horario_fim,
-      dias_semana: turma.dias_semana || [],
-      vagas_total: turma.vagas_total,
-      ciclo: turma.ciclo,
-      tipo_turma: turma.tipo_turma || "regular",
-    });
-    setIsDialogOpen(true);
+    if (isMountedRef.current) {
+      setEditingTurma(turma);
+      setFormData({
+        nome: turma.nome,
+        unidade_id: turma.unidade_id,
+        curso_id: turma.curso_id,
+        instrutor_id: turma.instrutor_id,
+        data_inicio: turma.data_inicio,
+        data_fim: turma.data_fim,
+        horario_inicio: turma.horario_inicio,
+        horario_fim: turma.horario_fim,
+        dias_semana: turma.dias_semana || [],
+        vagas_total: turma.vagas_total,
+        ciclo: turma.ciclo,
+        tipo_turma: turma.tipo_turma || "regular",
+      });
+      setIsDialogOpen(true);
+    }
   };
 
   const handleOpenDialog = () => {
-    setEditingTurma(null);
-    resetForm();
-    setIsDialogOpen(true);
+    if (isMountedRef.current) {
+      setEditingTurma(null);
+      resetForm();
+      setIsDialogOpen(true);
+    }
   };
 
   const handleManageAlunos = (turma) => {
-    setSelectedTurmaForAlunos(turma);
-    setIsAlunoDialogOpen(true);
+    if (isMountedRef.current) {
+      setSelectedTurmaForAlunos(turma);
+      setIsAlunoDialogOpen(true);
+    }
   };
 
   const handleDeleteTurma = async (turma) => {
@@ -3422,6 +3439,7 @@ const TurmasManager = () => {
   };
 
   if (loading) return <div>Carregando...</div>;
+  if (!isMountedRef.current) return null;
 
   return (
     <Card>
