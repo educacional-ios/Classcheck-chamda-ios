@@ -371,6 +371,10 @@ class Turma(BaseModel):
     tipo_turma: str = "regular"  # "regular" (instrutor) ou "extensao" (pedagogo)
     ativo: bool = True
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    
+    class Config:
+        # Nunca incluir instrutor_id na resposta (apenas instrutor_ids)
+        fields = {'instrutor_id': {'exclude': True}}
 
 class TurmaCreate(BaseModel):
     nome: str
