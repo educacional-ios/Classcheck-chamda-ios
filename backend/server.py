@@ -2354,11 +2354,14 @@ async def get_turmas(current_user: UserResponse = Depends(get_current_user)):
         
         if current_user.tipo == "instrutor":
             # Instrutor vê suas próprias turmas (onde está na lista de instrutores)
-            query["instrutor_ids"] = current_user.id
-            if getattr(current_user, 'curso_id', None):
-                query["curso_id"] = getattr(current_user, 'curso_id', None)
-            if getattr(current_user, 'unidade_id', None):
-                query["unidade_id"] = getattr(current_user, 'unidade_id', None)
+            # 🔄 FLEXIBILIZAÇÃO: Se está no array users, DEVE ver a turma, independente de curso/unidade
+            query["$or"] = [
+                {"instrutor_ids": current_user.id},
+                {"instrutor_id": current_user.id}  # Fallback para turmas antigas
+            ]
+            # REMOVIDO FILTRO DE CURSO/UNIDADE PARA INSTRUTOR
+            # Motivo: Se o instrutor foi atribuído à turma, ele deve vê-la mesmo que seja de outra unidade
+            print(f"🔍 Instrutor {current_user.email} buscando turmas. Query: {query}")
         
         elif current_user.tipo in ["pedagogo", "monitor"]:
             # Pedagogo e monitor veem turmas do seu curso e unidade
