@@ -3248,14 +3248,18 @@ const TurmasManager = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      console.log("📝 Enviando dados da turma:", formData);
+      
       if (editingTurma) {
-        await axios.put(`${API}/classes/${editingTurma.id}`, formData);
+        const response = await axios.put(`${API}/classes/${editingTurma.id}`, formData);
+        console.log("✅ Turma atualizada:", response.data);
         toast({
           title: "Turma atualizada com sucesso!",
           description: "As informações da turma foram atualizadas.",
         });
       } else {
-        await axios.post(`${API}/classes`, formData);
+        const response = await axios.post(`${API}/classes`, formData);
+        console.log("✅ Turma criada:", response.data);
         toast({
           title: "Turma criada com sucesso!",
           description: "A nova turma foi adicionada ao sistema.",
@@ -3272,9 +3276,11 @@ const TurmasManager = () => {
         fetchData();
       }, 100);
     } catch (error) {
+      console.error("❌ Erro ao salvar turma:", error);
+      console.error("Detalhes do erro:", error.response?.data);
       toast({
         title: editingTurma ? "Erro ao atualizar turma" : "Erro ao criar turma",
-        description: error.response?.data?.detail || "Tente novamente",
+        description: error.response?.data?.detail || error.message || "Tente novamente",
         variant: "destructive",
       });
     }
