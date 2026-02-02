@@ -171,6 +171,23 @@ JWT_SECRET = os.environ.get('JWT_SECRET', 'your-secret-key-change-in-production'
 JWT_ALGORITHM = 'HS256'
 security = HTTPBearer()
 
+# -------------------------
+# 🔐 Função para gerar senha temporária personalizada
+# -------------------------
+def gerar_senha_temporaria(nome_completo: str) -> str:
+    """
+    Gera senha temporária no padrão: IOS2026 + iniciais do nome
+    Exemplo: Fabiana Pinto Coelho → IOS2026fpc
+    """
+    # Pegar primeira letra de cada palavra do nome
+    palavras = nome_completo.strip().split()
+    iniciais = ''.join([p[0].lower() for p in palavras if p])
+    
+    # Limitar a 5 iniciais para não ficar muito longo
+    iniciais = iniciais[:5]
+    
+    return f"IOS2026{iniciais}"
+
 # Inclui o router no app (já criados acima)
 app.include_router(api_router)
 
@@ -775,8 +792,8 @@ async def create_user(user_create: UserCreate, current_user: UserResponse = Depe
         if not curso:
             raise HTTPException(status_code=400, detail="Curso não encontrado")
     
-    # Generate temporary password and confirmation token
-    temp_password = str(uuid.uuid4())[:8]
+    # Generate temporary password and confirmation token - Padrão: IOS2026 + iniciais
+    temp_password = gerar_senha_temporaria(user_create.nome)
     hashed_password = bcrypt.hash(temp_password)
     confirmation_token = str(uuid.uuid4())
     
@@ -908,8 +925,8 @@ async def reset_password_request(email_data: dict):
     user = await db.usuarios.find_one({"email": email})
     
     if user:
-        # Generate new temporary password
-        temp_password = str(uuid.uuid4())[:8]
+        # Generate new temporary password - Padrão: IOS2026 + iniciais
+        temp_password = gerar_senha_temporaria(user.get('nome', 'Usuario'))
         hashed_password = bcrypt.hash(temp_password)
         
         # Update user password
@@ -939,8 +956,8 @@ async def admin_reset_user_password(user_id: str, current_user: UserResponse = D
     if not user:
         raise HTTPException(status_code=404, detail="Usuário não encontrado")
     
-    # Generate new temporary password
-    temp_password = str(uuid.uuid4())[:8]
+    # Generate new temporary password - Padrão: IOS2026 + iniciais
+    temp_password = gerar_senha_temporaria(user.get('nome', 'Usuario'))
     hashed_password = bcrypt.hash(temp_password)
     
     # Update user password
