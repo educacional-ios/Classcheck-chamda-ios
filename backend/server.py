@@ -2554,6 +2554,12 @@ async def update_turma(turma_id: str, turma_update: TurmaUpdate, current_user: U
     # ✅ EXECUTAR ATUALIZAÇÃO
     update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
     
+    # 🔍 Log para debug
+    print(f"📝 Atualizando turma {turma_id}")
+    print(f"📋 Dados a atualizar: {update_data}")
+    if "instrutor_ids" in update_data:
+        print(f"👥 Instrutores: {update_data['instrutor_ids']}")
+    
     result = await db.turmas.update_one(
         {"id": turma_id},
         {"$set": update_data}

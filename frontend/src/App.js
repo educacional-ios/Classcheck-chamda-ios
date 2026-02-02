@@ -3353,6 +3353,8 @@ const TurmasManager = () => {
 
   const handleEdit = (turma) => {
     if (isMountedRef.current) {
+      console.log("🔧 Editando turma:", turma);
+      console.log("📋 instrutor_ids da turma:", turma.instrutor_ids);
       setEditingTurma(turma);
       setFormData({
         nome: turma.nome,
@@ -3367,6 +3369,9 @@ const TurmasManager = () => {
         vagas_total: turma.vagas_total,
         ciclo: turma.ciclo,
         tipo_turma: turma.tipo_turma || "regular",
+      });
+      console.log("✅ FormData após edição:", {
+        instrutor_ids: turma.instrutor_ids || []
       });
       setIsDialogOpen(true);
     }
