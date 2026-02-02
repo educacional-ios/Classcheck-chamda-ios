@@ -577,6 +577,18 @@ def parse_from_mongo(item):
         # Remove MongoDB ObjectId field if present
         if '_id' in item:
             del item['_id']
+        
+        # MIGRAÇÃO: Converter instrutor_id (singular) para instrutor_ids (plural)
+        if 'instrutor_id' in item and 'instrutor_ids' not in item:
+            # Se tem instrutor_id mas não tem instrutor_ids, converter
+            instrutor_id = item.get('instrutor_id')
+            if instrutor_id:
+                item['instrutor_ids'] = [instrutor_id]
+            else:
+                item['instrutor_ids'] = []
+        elif 'instrutor_ids' not in item:
+            # Se não tem nenhum dos dois, criar vazio
+            item['instrutor_ids'] = []
             
         for key, value in item.items():
             if isinstance(value, str) and key in ['data_inicio', 'data_fim', 'data', 'data_nascimento', 'data_desistencia']:
