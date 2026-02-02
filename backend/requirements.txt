@@ -1,3 +1,4 @@
+# Updated: 2026-02-02 - Force rebuild for instrutor_ids support
 annotated-types==0.7.0
 anyio==4.10.0
 black==25.1.0
