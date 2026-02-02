@@ -108,11 +108,11 @@ print(f"🌍 Ambiente: RENDER={os.environ.get('RENDER')}, RAILWAY={os.environ.ge
 # MongoDB connection
 # -------------------------
 # 🔄 USA VARIÁVEIS DE AMBIENTE (configuradas no Render/Railway)
-MONGO_URL = os.environ.get(
-    "MONGO_URL",
-    "mongodb+srv://educacional_db_user:TtCYD8qdhk26NUgf@cluster0.ukezihf.mongodb.net/?appName=Cluster0"
-)
+MONGO_URL = os.environ.get("MONGO_URL")
 DB_NAME = os.environ.get("DB_NAME", "IOS-SISTEMA-CHAMADA")
+
+if not MONGO_URL:
+    raise Exception("❌ MONGO_URL não configurado! Configure a variável de ambiente.")
 
 print(f"🔗 MongoDB: {MONGO_URL.split('@')[1].split('/')[0] if '@' in MONGO_URL else 'LOCAL'}")
 print(f"📂 Database: {DB_NAME}")
