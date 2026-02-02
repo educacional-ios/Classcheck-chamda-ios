@@ -2857,11 +2857,10 @@ const UsuariosManager = () => {
 
   // Função removida - usando getUserTypeLabel global com nomenclatura unissex
 
-  if (loading) return <div>Carregando...</div>;
+  if (loading) return <div key="usuarios-loading" className="p-8 text-center">Carregando usuários...</div>;
 
   return (
-    <div className="space-y-6">
-      {/* Pending Users Section */}
+    <div key="usuarios-content" className="space-y-6">{/* Pending Users Section */}
       {pendingUsers.length > 0 && (
         <Card>
           <CardHeader>
@@ -3471,11 +3470,11 @@ const TurmasManager = () => {
     }
   };
 
-  if (loading) return <div>Carregando...</div>;
+  if (loading) return <div key="turmas-loading" className="p-8 text-center">Carregando turmas...</div>;
   if (!isMountedRef.current) return null;
 
   return (
-    <Card>
+    <Card key="turmas-content">
       <CardHeader>
         <div className="flex justify-between items-center">
           <div>
@@ -5426,10 +5425,10 @@ Carlos Pereira,111.222.333-44,01/01/1988,carlos@email.com,11777777777,11.122.233
 
   // 🎯 PRODUÇÃO: Função de debug removida
 
-  if (loading) return <div>Carregando...</div>;
+  if (loading) return <div key="alunos-loading" className="p-8 text-center">Carregando alunos...</div>;
 
   return (
-    <Card>
+    <Card key="alunos-content">
       <CardHeader>
         <div className="flex justify-between items-center">
           <div>
@@ -6716,10 +6715,10 @@ const UnidadesManager = () => {
     setIsDialogOpen(true);
   };
 
-  if (loading) return <div>Carregando...</div>;
+  if (loading) return <div key="unidades-loading" className="p-8 text-center">Carregando unidades...</div>;
 
   return (
-    <Card>
+    <Card key="unidades-content">
       <CardHeader>
         <div className="flex justify-between items-center">
           <div>
@@ -7017,10 +7016,10 @@ const CursosManager = () => {
     setIsDialogOpen(true);
   };
 
-  if (loading) return <div>Carregando...</div>;
+  if (loading) return <div key="cursos-loading" className="p-8 text-center">Carregando cursos...</div>;
 
   return (
-    <Card>
+    <Card key="cursos-content">
       <CardHeader>
         <div className="flex justify-between items-center">
           <div>
