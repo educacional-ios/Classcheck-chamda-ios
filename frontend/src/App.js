@@ -84,7 +84,9 @@ import {
   TriangleAlert,
 } from "lucide-react";
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || "https://sistema-ios-backend.onrender.com";
+const BACKEND_URL =
+  process.env.REACT_APP_BACKEND_URL ||
+  "https://sistema-ios-backend.onrender.com";
 const API = `${BACKEND_URL}/api`;
 
 // 🔍 SISTEMA DE DEBUG UNIVERSAL - Para testar em outros computadores
@@ -471,15 +473,17 @@ class ErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, errorInfo) {
-    console.error('ErrorBoundary capturou erro:', error, errorInfo);
+    console.error("ErrorBoundary capturou erro:", error, errorInfo);
   }
 
   render() {
     if (this.state.hasError) {
       return (
-        <div style={{ padding: '20px', textAlign: 'center' }}>
+        <div style={{ padding: "20px", textAlign: "center" }}>
           <h2>Algo deu errado</h2>
-          <button onClick={() => window.location.reload()}>Recarregar página</button>
+          <button onClick={() => window.location.reload()}>
+            Recarregar página
+          </button>
         </div>
       );
     }
@@ -2745,7 +2749,7 @@ const UsuariosManager = () => {
 
       // Fechar modal primeiro
       setIsDialogOpen(false);
-      
+
       // Aguardar o modal fechar antes de atualizar estados
       setTimeout(() => {
         setEditingUser(null);
@@ -2857,10 +2861,16 @@ const UsuariosManager = () => {
 
   // Função removida - usando getUserTypeLabel global com nomenclatura unissex
 
-  if (loading) return <div key="usuarios-loading" className="p-8 text-center">Carregando usuários...</div>;
+  if (loading)
+    return (
+      <div key="usuarios-loading" className="p-8 text-center">
+        Carregando usuários...
+      </div>
+    );
 
   return (
-    <div key="usuarios-content" className="space-y-6">{/* Pending Users Section */}
+    <div key="usuarios-content" className="space-y-6">
+      {/* Pending Users Section */}
       {pendingUsers.length > 0 && (
         <Card>
           <CardHeader>
@@ -3154,7 +3164,7 @@ const TurmasManager = () => {
     nome: "",
     unidade_id: "",
     curso_id: "",
-    instrutor_id: "",
+    instrutor_ids: [],  // Array para múltiplos instrutores
     data_inicio: "",
     data_fim: "",
     horario_inicio: "",
@@ -3249,9 +3259,12 @@ const TurmasManager = () => {
     e.preventDefault();
     try {
       console.log("📝 Enviando dados da turma:", formData);
-      
+
       if (editingTurma) {
-        const response = await axios.put(`${API}/classes/${editingTurma.id}`, formData);
+        const response = await axios.put(
+          `${API}/classes/${editingTurma.id}`,
+          formData,
+        );
         console.log("✅ Turma atualizada:", response.data);
         toast({
           title: "Turma atualizada com sucesso!",
@@ -3268,7 +3281,7 @@ const TurmasManager = () => {
 
       // Fechar modal primeiro
       setIsDialogOpen(false);
-      
+
       // Aguardar o modal fechar antes de atualizar estados
       setTimeout(() => {
         setEditingTurma(null);
@@ -3280,7 +3293,8 @@ const TurmasManager = () => {
       console.error("Detalhes do erro:", error.response?.data);
       toast({
         title: editingTurma ? "Erro ao atualizar turma" : "Erro ao criar turma",
-        description: error.response?.data?.detail || error.message || "Tente novamente",
+        description:
+          error.response?.data?.detail || error.message || "Tente novamente",
         variant: "destructive",
       });
     }
@@ -3290,14 +3304,14 @@ const TurmasManager = () => {
     // ✅ AUTO-PREENCHIMENTO: Para não-admin, pré-preencher unidade e instrutor
     const defaultUnidadeId =
       user?.tipo !== "admin" ? user?.unidade_id || "" : "";
-    const defaultInstrutorId = user?.tipo !== "admin" ? user?.id || "" : "";
+    const defaultInstrutorIds = user?.tipo !== "admin" ? [user?.id] : [];
     const defaultCursoId = user?.tipo !== "admin" ? user?.curso_id || "" : "";
 
     setFormData({
       nome: "",
       unidade_id: defaultUnidadeId,
       curso_id: defaultCursoId,
-      instrutor_id: defaultInstrutorId,
+      instrutor_ids: defaultInstrutorIds,
       data_inicio: "",
       data_fim: "",
       horario_inicio: "",
@@ -3344,7 +3358,7 @@ const TurmasManager = () => {
         nome: turma.nome,
         unidade_id: turma.unidade_id,
         curso_id: turma.curso_id,
-        instrutor_id: turma.instrutor_id,
+        instrutor_ids: turma.instrutor_ids || [],  // Array de instrutores
         data_inicio: turma.data_inicio,
         data_fim: turma.data_fim,
         horario_inicio: turma.horario_inicio,
@@ -3476,7 +3490,12 @@ const TurmasManager = () => {
     }
   };
 
-  if (loading) return <div key="turmas-loading" className="p-8 text-center">Carregando turmas...</div>;
+  if (loading)
+    return (
+      <div key="turmas-loading" className="p-8 text-center">
+        Carregando turmas...
+      </div>
+    );
   if (!isMountedRef.current) return null;
 
   return (
@@ -3623,30 +3642,64 @@ const TurmasManager = () => {
 
                 <div className="space-y-2">
                   <Label>
-                    Responsável{" "}
+                    Responsáveis (até 2){" "}
                     {user?.tipo === "admin"
                       ? `(${usuarios.length} instrutores/pedagogos disponíveis)`
                       : "(Você)"}
                   </Label>
                   {user?.tipo === "admin" ? (
-                    <Select
-                      value={formData.instrutor_id}
-                      onValueChange={(value) =>
-                        setFormData({ ...formData, instrutor_id: value })
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione o responsável" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {Array.isArray(usuarios) &&
-                          usuarios.map((usuario) => (
-                            <SelectItem key={usuario.id} value={usuario.id}>
-                              {usuario.nome} ({usuario.tipo_label})
-                            </SelectItem>
-                          ))}
-                      </SelectContent>
-                    </Select>
+                    <div className="space-y-2">
+                      {/* Primeiro Instrutor */}
+                      <Select
+                        value={formData.instrutor_ids[0] || ""}
+                        onValueChange={(value) => {
+                          const newIds = [...formData.instrutor_ids];
+                          newIds[0] = value;
+                          setFormData({ ...formData, instrutor_ids: newIds.filter(id => id) });
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione o 1º responsável" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Array.isArray(usuarios) &&
+                            usuarios.map((usuario) => (
+                              <SelectItem key={usuario.id} value={usuario.id}>
+                                {usuario.nome} ({usuario.tipo_label})
+                              </SelectItem>
+                            ))}
+                        </SelectContent>
+                      </Select>
+                      
+                      {/* Segundo Instrutor (Opcional) */}
+                      <Select
+                        value={formData.instrutor_ids[1] || ""}
+                        onValueChange={(value) => {
+                          const newIds = [...formData.instrutor_ids];
+                          if (value) {
+                            newIds[1] = value;
+                          } else {
+                            newIds.splice(1, 1);
+                          }
+                          setFormData({ ...formData, instrutor_ids: newIds.filter(id => id) });
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione o 2º responsável (opcional)" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">Nenhum</SelectItem>
+                          {Array.isArray(usuarios) &&
+                            usuarios
+                              .filter(u => u.id !== formData.instrutor_ids[0])
+                              .map((usuario) => (
+                                <SelectItem key={usuario.id} value={usuario.id}>
+                                  {usuario.nome} ({usuario.tipo_label})
+                                </SelectItem>
+                              ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   ) : (
                     <Input
                       value={user?.nome || "Você"}
@@ -5066,7 +5119,7 @@ const AlunosManager = () => {
 
       // Fechar modal primeiro
       setIsDialogOpen(false);
-      
+
       // Aguardar o modal fechar antes de atualizar estados
       setTimeout(() => {
         setEditingAluno(null);
@@ -5431,7 +5484,12 @@ Carlos Pereira,111.222.333-44,01/01/1988,carlos@email.com,11777777777,11.122.233
 
   // 🎯 PRODUÇÃO: Função de debug removida
 
-  if (loading) return <div key="alunos-loading" className="p-8 text-center">Carregando alunos...</div>;
+  if (loading)
+    return (
+      <div key="alunos-loading" className="p-8 text-center">
+        Carregando alunos...
+      </div>
+    );
 
   return (
     <Card key="alunos-content">
@@ -6721,7 +6779,12 @@ const UnidadesManager = () => {
     setIsDialogOpen(true);
   };
 
-  if (loading) return <div key="unidades-loading" className="p-8 text-center">Carregando unidades...</div>;
+  if (loading)
+    return (
+      <div key="unidades-loading" className="p-8 text-center">
+        Carregando unidades...
+      </div>
+    );
 
   return (
     <Card key="unidades-content">
@@ -7022,7 +7085,12 @@ const CursosManager = () => {
     setIsDialogOpen(true);
   };
 
-  if (loading) return <div key="cursos-loading" className="p-8 text-center">Carregando cursos...</div>;
+  if (loading)
+    return (
+      <div key="cursos-loading" className="p-8 text-center">
+        Carregando cursos...
+      </div>
+    );
 
   return (
     <Card key="cursos-content">
