@@ -459,6 +459,35 @@ const verificarHealthSistema = async (alunosData = [], chamadasData = []) => {
   }
 };
 
+// ErrorBoundary para capturar erros do React
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error('ErrorBoundary capturou erro:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ padding: '20px', textAlign: 'center' }}>
+          <h2>Algo deu errado</h2>
+          <button onClick={() => window.location.reload()}>Recarregar página</button>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
 // Authentication Context
 const AuthContext = React.createContext();
 
@@ -474,15 +503,13 @@ const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(localStorage.getItem("token"));
   const [loading, setLoading] = useState(true);
+  const isMounted = React.useRef(true);
 
-  // Timeout de segurança - nunca deixar loading indefinidamente
   useEffect(() => {
-    const failsafeTimeout = setTimeout(() => {
-      console.warn("⚠️ Timeout de segurança ativado - parando loading");
-      setLoading(false);
-    }, 15000); // 15 segundos
-
-    return () => clearTimeout(failsafeTimeout);
+    isMounted.current = true;
+    return () => {
+      isMounted.current = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -510,15 +537,21 @@ const AuthProvider = ({ children }) => {
       console.log("🔍 Verificando usuário atual...");
       const response = await axios.get(`${API}/auth/me`);
       console.log("✅ Usuário carregado:", response.data.email);
-      setUser(response.data);
+      if (isMounted.current) {
+        setUser(response.data);
+      }
     } catch (error) {
       console.error("❌ Erro ao buscar usuário:", error);
       // Limpar dados inválidos e permitir novo login
-      localStorage.removeItem("token");
-      delete axios.defaults.headers.common["Authorization"];
-      setUser(null);
+      if (isMounted.current) {
+        localStorage.removeItem("token");
+        delete axios.defaults.headers.common["Authorization"];
+        setUser(null);
+      }
     } finally {
-      setLoading(false);
+      if (isMounted.current) {
+        setLoading(false);
+      }
     }
   };
 
@@ -7218,24 +7251,26 @@ const CursosManager = () => {
 // Main App Component
 function App() {
   return (
-    <AuthProvider>
-      <div className="App">
-        <BrowserRouter>
-          <Routes>
-            <Route path="/login" element={<LoginRoute />} />
-            <Route
-              path="/"
-              element={
-                <ProtectedRoute>
-                  <Dashboard />
-                </ProtectedRoute>
-              }
-            />
-          </Routes>
-        </BrowserRouter>
-        <Toaster />
-      </div>
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <div className="App">
+          <BrowserRouter>
+            <Routes>
+              <Route path="/login" element={<LoginRoute />} />
+              <Route
+                path="/"
+                element={
+                  <ProtectedRoute>
+                    <Dashboard />
+                  </ProtectedRoute>
+                }
+              />
+            </Routes>
+          </BrowserRouter>
+          <Toaster />
+        </div>
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }
 
