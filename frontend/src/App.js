@@ -3672,33 +3672,51 @@ const TurmasManager = () => {
                       </Select>
                       
                       {/* Segundo Instrutor (Opcional) */}
-                      <Select
-                        value={formData.instrutor_ids[1] || ""}
-                        onValueChange={(value) => {
-                          const newIds = [...formData.instrutor_ids];
-                          if (value) {
-                            newIds[1] = value;
-                          } else {
-                            newIds.splice(1, 1);
-                          }
-                          setFormData({ ...formData, instrutor_ids: newIds.filter(id => id) });
-                        }}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione o 2º responsável (opcional)" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="">Nenhum</SelectItem>
-                          {Array.isArray(usuarios) &&
-                            usuarios
-                              .filter(u => u.id !== formData.instrutor_ids[0])
-                              .map((usuario) => (
-                                <SelectItem key={usuario.id} value={usuario.id}>
-                                  {usuario.nome} ({usuario.tipo_label})
-                                </SelectItem>
-                              ))}
-                        </SelectContent>
-                      </Select>
+                      <div className="flex gap-2">
+                        <Select
+                          value={formData.instrutor_ids[1] || "none"}
+                          onValueChange={(value) => {
+                            const newIds = [...formData.instrutor_ids];
+                            if (value && value !== "none") {
+                              newIds[1] = value;
+                              setFormData({ ...formData, instrutor_ids: newIds });
+                            } else {
+                              // Remover segundo instrutor
+                              newIds.splice(1, 1);
+                              setFormData({ ...formData, instrutor_ids: newIds });
+                            }
+                          }}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione o 2º responsável (opcional)" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">Nenhum</SelectItem>
+                            {Array.isArray(usuarios) &&
+                              usuarios
+                                .filter(u => u.id !== formData.instrutor_ids[0])
+                                .map((usuario) => (
+                                  <SelectItem key={usuario.id} value={usuario.id}>
+                                    {usuario.nome} ({usuario.tipo_label})
+                                  </SelectItem>
+                                ))}
+                          </SelectContent>
+                        </Select>
+                        {formData.instrutor_ids[1] && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const newIds = [...formData.instrutor_ids];
+                              newIds.splice(1, 1);
+                              setFormData({ ...formData, instrutor_ids: newIds });
+                            }}
+                            className="px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-md"
+                            title="Remover 2º instrutor"
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
                     </div>
                   ) : (
                     <Input
