@@ -359,7 +359,8 @@ class Turma(BaseModel):
     nome: str
     unidade_id: str
     curso_id: str
-    instrutor_ids: List[str] = []  # Lista de até 2 instrutores
+    instrutor_id: Optional[str] = None  # DEPRECATED - manter por compatibilidade
+    instrutor_ids: List[str] = Field(default_factory=list)  # Lista de até 2 instrutores
     pedagogo_id: Optional[str] = None
     monitor_id: Optional[str] = None
     alunos_ids: List[str] = []
@@ -374,10 +375,6 @@ class Turma(BaseModel):
     tipo_turma: str = "regular"  # "regular" (instrutor) ou "extensao" (pedagogo)
     ativo: bool = True
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    
-    class Config:
-        # Nunca incluir instrutor_id na resposta (apenas instrutor_ids)
-        fields = {'instrutor_id': {'exclude': True}}
 
 class TurmaCreate(BaseModel):
     nome: str

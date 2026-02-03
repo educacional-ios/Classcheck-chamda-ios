@@ -3164,7 +3164,7 @@ const TurmasManager = () => {
     nome: "",
     unidade_id: "",
     curso_id: "",
-    instrutor_ids: [],  // Array para múltiplos instrutores
+    instrutor_ids: [], // Array para múltiplos instrutores
     data_inicio: "",
     data_fim: "",
     horario_inicio: "",
@@ -3263,9 +3263,10 @@ const TurmasManager = () => {
       // COMPATIBILIDADE: Enviar ambos os formatos até Render atualizar
       const payload = {
         ...formData,
-        instrutor_id: formData.instrutor_ids && formData.instrutor_ids.length > 0 
-          ? formData.instrutor_ids[0] 
-          : null
+        instrutor_id:
+          formData.instrutor_ids && formData.instrutor_ids.length > 0
+            ? formData.instrutor_ids[0]
+            : null,
       };
 
       if (editingTurma) {
@@ -3368,7 +3369,7 @@ const TurmasManager = () => {
         nome: turma.nome,
         unidade_id: turma.unidade_id,
         curso_id: turma.curso_id,
-        instrutor_ids: turma.instrutor_ids || [],  // Array de instrutores
+        instrutor_ids: turma.instrutor_ids || [], // Array de instrutores
         data_inicio: turma.data_inicio,
         data_fim: turma.data_fim,
         horario_inicio: turma.horario_inicio,
@@ -3379,7 +3380,7 @@ const TurmasManager = () => {
         tipo_turma: turma.tipo_turma || "regular",
       });
       console.log("✅ FormData após edição:", {
-        instrutor_ids: turma.instrutor_ids || []
+        instrutor_ids: turma.instrutor_ids || [],
       });
       setIsDialogOpen(true);
     }
@@ -3668,7 +3669,10 @@ const TurmasManager = () => {
                         onValueChange={(value) => {
                           const newIds = [...formData.instrutor_ids];
                           newIds[0] = value;
-                          setFormData({ ...formData, instrutor_ids: newIds.filter(id => id) });
+                          setFormData({
+                            ...formData,
+                            instrutor_ids: newIds.filter((id) => id),
+                          });
                         }}
                       >
                         <SelectTrigger>
@@ -3683,7 +3687,7 @@ const TurmasManager = () => {
                             ))}
                         </SelectContent>
                       </Select>
-                      
+
                       {/* Segundo Instrutor (Opcional) */}
                       <div className="flex gap-2">
                         <Select
@@ -3692,11 +3696,17 @@ const TurmasManager = () => {
                             const newIds = [...formData.instrutor_ids];
                             if (value && value !== "none") {
                               newIds[1] = value;
-                              setFormData({ ...formData, instrutor_ids: newIds });
+                              setFormData({
+                                ...formData,
+                                instrutor_ids: newIds,
+                              });
                             } else {
                               // Remover segundo instrutor
                               newIds.splice(1, 1);
-                              setFormData({ ...formData, instrutor_ids: newIds });
+                              setFormData({
+                                ...formData,
+                                instrutor_ids: newIds,
+                              });
                             }
                           }}
                         >
@@ -3707,9 +3717,14 @@ const TurmasManager = () => {
                             <SelectItem value="none">Nenhum</SelectItem>
                             {Array.isArray(usuarios) &&
                               usuarios
-                                .filter(u => u.id !== formData.instrutor_ids[0])
+                                .filter(
+                                  (u) => u.id !== formData.instrutor_ids[0],
+                                )
                                 .map((usuario) => (
-                                  <SelectItem key={usuario.id} value={usuario.id}>
+                                  <SelectItem
+                                    key={usuario.id}
+                                    value={usuario.id}
+                                  >
                                     {usuario.nome} ({usuario.tipo_label})
                                   </SelectItem>
                                 ))}
@@ -3721,7 +3736,10 @@ const TurmasManager = () => {
                             onClick={() => {
                               const newIds = [...formData.instrutor_ids];
                               newIds.splice(1, 1);
-                              setFormData({ ...formData, instrutor_ids: newIds });
+                              setFormData({
+                                ...formData,
+                                instrutor_ids: newIds,
+                              });
                             }}
                             className="px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-md"
                             title="Remover 2º instrutor"
