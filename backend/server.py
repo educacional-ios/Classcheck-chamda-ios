@@ -195,6 +195,28 @@ def gerar_senha_temporaria(nome_completo: str) -> str:
 # Inclui o router no app (já criados acima)
 app.include_router(api_router)
 
+# Endpoint de diagnóstico
+@app.get("/debug/status")
+async def debug_status():
+    """Endpoint para verificar qual código está rodando e qual banco está conectado"""
+    import sys
+    from datetime import datetime
+    
+    # Pegar uma turma de exemplo do banco
+    turma_exemplo = await db.turmas.find_one()
+    
+    return {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "python_version": sys.version,
+        "database_connected": MONGO_URL.split('@')[1].split('/')[0] if '@' in MONGO_URL else 'LOCAL',
+        "database_name": DB_NAME,
+        "total_turmas": await db.turmas.count_documents({}),
+        "codigo_versao": "a8279ba - CRITICAL FIX instrutor_ids",
+        "turma_exemplo_keys": list(turma_exemplo.keys()) if turma_exemplo else [],
+        "turma_exemplo_instrutor_id": turma_exemplo.get('instrutor_id') if turma_exemplo else None,
+        "turma_exemplo_instrutor_ids": turma_exemplo.get('instrutor_ids') if turma_exemplo else None,
+    }
+
 # CSV Format Enum for API
 class CSVFormat(str, Enum):
     simple = "simple"
