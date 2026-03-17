@@ -5329,7 +5329,8 @@ const AlunosManager = () => {
     try {
       await axios.post(`${API}/dropouts`, {
         aluno_id: selectedAluno.id,
-        motivo: dropoutReason,
+        motivo_codigo: "outro",
+        motivo_descricao: dropoutReason,
         data_desistencia: new Date().toISOString().split("T")[0],
       });
 
