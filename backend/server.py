@@ -40,9 +40,10 @@ origins = [
     "http://localhost",
     "http://localhost:3000",
     "http://127.0.0.1:3000",
-    "https://classcheck-chamda-ios.vercel.app",  # 🎯 Novo frontend Vercel
-    "https://classcheck-chamda-ios-*.vercel.app",  # Preview deployments
-    "https://sistema-ios-backend.onrender.com",  # 🚀 URL do backend Render
+    "https://classcheck-chamda-ios.vercel.app",
+    "https://classcheck-chamada-ios.vercel.app",   # ✅ ADICIONADO
+    "https://classcheck-chamda-ios-1.onrender.com", # ✅ ADICIONADO
+    "https://sistema-ios-backend.onrender.com",
 ]
 
 app.add_middleware(
@@ -59,14 +60,17 @@ async def cors_handler(request, call_next):
     """Middleware CORS super robusto para resolver problemas de produção"""
     
     # Headers CORS mais permissivos
-    cors_headers = {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "*",
-        "Access-Control-Allow-Headers": "*",
-        "Access-Control-Allow-Credentials": "false",  # False quando origin é *
-        "Access-Control-Max-Age": "86400",
-        "Access-Control-Expose-Headers": "*"
-    }
+ origin = request.headers.get("origin", "")
+allow_origin = origin if origin in origins else origins[0]
+
+cors_headers = {
+    "Access-Control-Allow-Origin": allow_origin,
+    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+    "Access-Control-Allow-Headers": "*",
+    "Access-Control-Allow-Credentials": "true",
+    "Access-Control-Max-Age": "86400",
+    "Access-Control-Expose-Headers": "*",
+}
     
     # 🚨 PREFLIGHT - Resposta direta para OPTIONS
     if request.method == "OPTIONS":
@@ -5187,19 +5191,6 @@ async def create_attendance_today(
 # Include the router in the main app
 app.include_router(api_router)
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_credentials=True,
-    allow_origins=[
-        "http://localhost:3000",  # Desenvolvimento local
-        "https://front-end-sistema-qbl0lhxig-jesielamarojunior-makers-projects.vercel.app",  # Vercel deployment
-        "https://front-end-sistema.vercel.app",  # Vercel custom domain
-        "https://sistema-ios-frontend.vercel.app",  # Possível domínio personalizado
-        "*"  # Fallback para desenvolvimento
-    ],
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["*"],
-)
 
 # Configure logging
 logging.basicConfig(
