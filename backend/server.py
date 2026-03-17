@@ -58,19 +58,18 @@ app.add_middleware(
 @app.middleware("http")
 async def cors_handler(request, call_next):
     """Middleware CORS super robusto para resolver problemas de produção"""
-    
-    # Headers CORS mais permissivos
- origin = request.headers.get("origin", "")
-allow_origin = origin if origin in origins else origins[0]
 
-cors_headers = {
-    "Access-Control-Allow-Origin": allow_origin,
-    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-    "Access-Control-Allow-Headers": "*",
-    "Access-Control-Allow-Credentials": "true",
-    "Access-Control-Max-Age": "86400",
-    "Access-Control-Expose-Headers": "*",
-}
+    origin = request.headers.get("origin", "")
+    allow_origin = origin if origin in origins else origins[0]
+
+    cors_headers = {
+        "Access-Control-Allow-Origin": allow_origin,
+        "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+        "Access-Control-Allow-Headers": "*",
+        "Access-Control-Allow-Credentials": "true",
+        "Access-Control-Max-Age": "86400",
+        "Access-Control-Expose-Headers": "*",
+    }
     
     # 🚨 PREFLIGHT - Resposta direta para OPTIONS
     if request.method == "OPTIONS":
