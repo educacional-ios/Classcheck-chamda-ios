@@ -5116,16 +5116,6 @@ const AlunosManager = () => {
       });
       return;
     }
-
-    if (!formData.data_nascimento) {
-      toast({
-        title: "Campo obrigatório",
-        description: "Data de nascimento é obrigatória",
-        variant: "destructive",
-      });
-      return;
-    }
-
     try {
       if (editingAluno) {
         await axios.put(`${API}/students/${editingAluno.id}`, formData);
@@ -5490,11 +5480,10 @@ const AlunosManager = () => {
     URL.revokeObjectURL(link.href);
   };
 
-  const downloadTemplate = () => {
-    const templateContent = `nome_completo,cpf,data_nascimento,email,telefone,rg,genero,endereco
-João da Silva,123.456.789-09,12/05/1990,joao@email.com,11999999999,12.345.678-9,M,Rua das Flores 123
-Maria Souza,987.654.321-00,22/03/1995,maria@email.com,11888888888,98.765.432-1,F,Av Paulista 456
-Carlos Pereira,111.222.333-44,01/01/1988,carlos@email.com,11777777777,11.122.233-3,M,Rua Augusta 789`;
+  const templateContent = `nome_completo,nome_social,cpf
+João da Silva,,123.456.789-09
+Maria Souza,Mari,987.654.321-00
+Carlos Pereira,,111.222.333-44`;
 
     const blob = new Blob([templateContent], {
       type: "text/csv;charset=utf-8;",
@@ -5709,101 +5698,6 @@ Carlos Pereira,111.222.333-44,01/01/1988,carlos@email.com,11777777777,11.122.233
                       📄 Informações Complementares
                     </h3>
 
-                    <div className="grid grid-cols-3 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="rg">RG</Label>
-                        <Input
-                          id="rg"
-                          value={formData.rg}
-                          onChange={(e) =>
-                            setFormData({ ...formData, rg: e.target.value })
-                          }
-                          placeholder="00.000.000-0"
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="data_nascimento">
-                          Data de Nascimento *
-                        </Label>
-                        <Input
-                          id="data_nascimento"
-                          type="date"
-                          value={formData.data_nascimento}
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              data_nascimento: e.target.value,
-                            })
-                          }
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label>Gênero</Label>
-                        <Select
-                          value={formData.genero}
-                          onValueChange={(value) =>
-                            setFormData({ ...formData, genero: value })
-                          }
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecione" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="masculino">Masculino</SelectItem>
-                            <SelectItem value="feminino">Feminino</SelectItem>
-                            <SelectItem value="outro">Outro</SelectItem>
-                            <SelectItem value="nao_informado">
-                              Não informado
-                            </SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="telefone">Telefone</Label>
-                        <Input
-                          id="telefone"
-                          value={formData.telefone}
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              telefone: e.target.value,
-                            })
-                          }
-                          placeholder="(11) 99999-9999"
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="email">Email</Label>
-                        <Input
-                          id="email"
-                          type="email"
-                          value={formData.email}
-                          onChange={(e) =>
-                            setFormData({ ...formData, email: e.target.value })
-                          }
-                          placeholder="aluno@email.com"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="endereco">Endereço Completo</Label>
-                      <Input
-                        id="endereco"
-                        value={formData.endereco}
-                        onChange={(e) =>
-                          setFormData({ ...formData, endereco: e.target.value })
-                        }
-                        placeholder="Rua, número, bairro, cidade, CEP"
-                      />
-                    </div>
-
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="nome_responsavel">
@@ -5838,21 +5732,6 @@ Carlos Pereira,111.222.333-44,01/01/1988,carlos@email.com,11777777777,11.122.233
                           placeholder="(11) 99999-9999"
                         />
                       </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="observacoes">Observações</Label>
-                      <Textarea
-                        id="observacoes"
-                        value={formData.observacoes}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            observacoes: e.target.value,
-                          })
-                        }
-                        placeholder="Observações sobre o aluno..."
-                      />
                     </div>
                   </div>
 
@@ -6108,16 +5987,11 @@ Carlos Pereira,111.222.333-44,01/01/1988,carlos@email.com,11777777777,11.122.233
               <div className="text-sm text-blue-700 space-y-1">
                 <p>
                   <strong>Campos obrigatórios:</strong> nome_completo, cpf,
-                  data_nascimento
-                </p>
+                  </p>
                 <p>
-                  <strong>Campos opcionais:</strong> email, telefone, rg,
-                  genero, endereco
+                  <strong>Campos opcionais:</strong> nome_social
                 </p>
-                <p>
-                  <strong>Formato data:</strong> DD/MM/AAAA (ex: 15/03/1990)
-                </p>
-                <p>
+               <p>
                   <strong>Formato CPF:</strong> Com ou sem pontuação (ex:
                   123.456.789-09 ou 12345678909)
                 </p>
