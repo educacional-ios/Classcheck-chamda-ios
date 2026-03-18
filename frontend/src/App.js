@@ -5032,19 +5032,10 @@ const AlunosManager = () => {
   const [bulkSummaryData, setBulkSummaryData] = useState(null);
 
   const [formData, setFormData] = useState({
-    nome: "",
-    cpf: "",
-    idade: "",
-    rg: "",
-    data_nascimento: "",
-    genero: "",
-    telefone: "",
-    email: "",
-    endereco: "",
-    nome_responsavel: "",
-    telefone_responsavel: "",
-    observacoes: "",
-    turma_id: "", // ✅ Campo turma adicionado
+  nome: "",
+  cpf: "",
+  nome_social: "",
+  turma_id: "",
   });
 
   useEffect(() => {
@@ -5175,11 +5166,12 @@ const AlunosManager = () => {
     }
   };
 
-  const resetForm = () => {
-nome: "",
+const resetForm = () => {
+  setFormData({
+    nome: "",
     cpf: "",
     nome_social: "",
-    turma_id: "", // ✅ Campo turma resetado
+    turma_id: "",
     });
   };
 
@@ -5263,18 +5255,10 @@ nome: "",
   const handleEdit = (aluno) => {
     setEditingAluno(aluno);
     setFormData({
-      nome: aluno.nome,
-      cpf: aluno.cpf,
-      idade: aluno.idade || "",
-      rg: aluno.rg || "",
-      data_nascimento: aluno.data_nascimento || "",
-      genero: aluno.genero || "",
-      telefone: aluno.telefone || "",
-      email: aluno.email || "",
-      endereco: aluno.endereco || "",
-      nome_responsavel: aluno.nome_responsavel || "",
-      telefone_responsavel: aluno.telefone_responsavel || "",
-      observacoes: aluno.observacoes || "",
+     nome: aluno.nome,
+     cpf: aluno.cpf,
+     nome_social: aluno.nome_social || "",
+     turma_id: "",
     });
     setIsDialogOpen(true);
   };
@@ -5576,7 +5560,7 @@ Carlos Pereira,,111.222.333-44`;
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-4">
                   {/* Campos Obrigatórios - Destacados */}
-                  <div className="border-2 border-blue-200 rounded-lg p-4 bg-blue-50">
+<div className="border-2 border-blue-200 rounded-lg p-4 bg-blue-50">
                     <h3 className="text-lg font-semibold text-blue-800 mb-3">
                       📋 Cadastro do aluno
                     </h3>
@@ -5617,7 +5601,6 @@ Carlos Pereira,,111.222.333-44`;
                           className="border-blue-300 focus:border-blue-500"
                         />
                       </div>
-                      </div>
 
                       <div className="space-y-2">
                         <Label
@@ -5639,7 +5622,6 @@ Carlos Pereira,,111.222.333-44`;
                       </div>
                     </div>
                   </div>
-
                   {/* Campo Turma - Entre Obrigatórios e Complementares */}
                   <div className="border-2 border-green-200 rounded-lg p-4 bg-green-50">
                     <h3 className="text-lg font-semibold text-green-800 mb-3">
@@ -5680,160 +5662,7 @@ Carlos Pereira,,111.222.333-44`;
                       </p>
                     </div>
                   </div>
-
-                  {/* Campos Complementares */}
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-semibold text-gray-700">
-                      📄 Informações Complementares
-                    </h3>
-
-                    <div className="grid grid-cols-3 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="rg">RG</Label>
-                        <Input
-                          id="rg"
-                          value={formData.rg}
-                          onChange={(e) =>
-                            setFormData({ ...formData, rg: e.target.value })
-                          }
-                          placeholder="00.000.000-0"
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="data_nascimento">
-                          Data de Nascimento *
-                        </Label>
-                        <Input
-                          id="data_nascimento"
-                          type="date"
-                          value={formData.data_nascimento}
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              data_nascimento: e.target.value,
-                            })
-                          }
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label>Gênero</Label>
-                        <Select
-                          value={formData.genero}
-                          onValueChange={(value) =>
-                            setFormData({ ...formData, genero: value })
-                          }
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecione" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="masculino">Masculino</SelectItem>
-                            <SelectItem value="feminino">Feminino</SelectItem>
-                            <SelectItem value="outro">Outro</SelectItem>
-                            <SelectItem value="nao_informado">
-                              Não informado
-                            </SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="telefone">Telefone</Label>
-                        <Input
-                          id="telefone"
-                          value={formData.telefone}
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              telefone: e.target.value,
-                            })
-                          }
-                          placeholder="(11) 99999-9999"
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="email">Email</Label>
-                        <Input
-                          id="email"
-                          type="email"
-                          value={formData.email}
-                          onChange={(e) =>
-                            setFormData({ ...formData, email: e.target.value })
-                          }
-                          placeholder="aluno@email.com"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="endereco">Endereço Completo</Label>
-                      <Input
-                        id="endereco"
-                        value={formData.endereco}
-                        onChange={(e) =>
-                          setFormData({ ...formData, endereco: e.target.value })
-                        }
-                        placeholder="Rua, número, bairro, cidade, CEP"
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="nome_responsavel">
-                          Nome do Responsável
-                        </Label>
-                        <Input
-                          id="nome_responsavel"
-                          value={formData.nome_responsavel}
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              nome_responsavel: e.target.value,
-                            })
-                          }
-                          placeholder="Para menores de idade"
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="telefone_responsavel">
-                          Telefone do Responsável
-                        </Label>
-                        <Input
-                          id="telefone_responsavel"
-                          value={formData.telefone_responsavel}
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              telefone_responsavel: e.target.value,
-                            })
-                          }
-                          placeholder="(11) 99999-9999"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="observacoes">Observações</Label>
-                      <Textarea
-                        id="observacoes"
-                        value={formData.observacoes}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            observacoes: e.target.value,
-                          })
-                        }
-                        placeholder="Observações sobre o aluno..."
-                      />
-                    </div>
-                  </div>
-
+                                      
                   <Button
                     type="submit"
                     className="w-full bg-blue-600 hover:bg-blue-700"
@@ -5903,7 +5732,7 @@ Carlos Pereira,,111.222.333-44`;
               <TableRow>
                 <TableHead>Nome</TableHead>
                 <TableHead>CPF</TableHead>
-                <TableHead>Idade</TableHead>
+                <TableHead>Nome Social</TableHead>
                 <TableHead>Contato</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Ações</TableHead>
@@ -5916,7 +5745,7 @@ Carlos Pereira,,111.222.333-44`;
                     <TableCell className="font-medium">{aluno.nome}</TableCell>
                     <TableCell>{aluno.cpf}</TableCell>
                     <TableCell className="text-center font-medium">
-                      {aluno.idade ? `${aluno.idade} anos` : "N/A"}
+                      {aluno.nome_social || "—"}
                     </TableCell>
                     <TableCell>
                       <div className="space-y-1">
@@ -6085,15 +5914,10 @@ Carlos Pereira,,111.222.333-44`;
               </h3>
               <div className="text-sm text-blue-700 space-y-1">
                 <p>
-                  <strong>Campos obrigatórios:</strong> nome_completo, cpf,
-                  data_nascimento
+                  <strong>Campos obrigatórios:</strong> nome_completo, cpf
                 </p>
                 <p>
-                  <strong>Campos opcionais:</strong> email, telefone, rg,
-                  genero, endereco
-                </p>
-                <p>
-                  <strong>Formato data:</strong> DD/MM/AAAA (ex: 15/03/1990)
+                  <strong>Campos opcionais:</strong> nome_social
                 </p>
                 <p>
                   <strong>Formato CPF:</strong> Com ou sem pontuação (ex:
