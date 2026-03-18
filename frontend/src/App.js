@@ -5117,16 +5117,7 @@ const AlunosManager = () => {
       return;
     }
 
-    if (!formData.data_nascimento) {
-      toast({
-        title: "Campo obrigatório",
-        description: "Data de nascimento é obrigatória",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
+     try {
       if (editingAluno) {
         await axios.put(`${API}/students/${editingAluno.id}`, formData);
         toast({
@@ -5329,7 +5320,8 @@ const AlunosManager = () => {
     try {
       await axios.post(`${API}/dropouts`, {
         aluno_id: selectedAluno.id,
-        motivo: dropoutReason,
+        motivo_codigo: "outro",
+        motivo_descricao: dropoutReason,
         data_desistencia: new Date().toISOString().split("T")[0],
       });
 
@@ -5490,10 +5482,10 @@ const AlunosManager = () => {
   };
 
   const downloadTemplate = () => {
-    const templateContent = `nome_completo,cpf,data_nascimento,email,telefone,rg,genero,endereco
-João da Silva,123.456.789-09,12/05/1990,joao@email.com,11999999999,12.345.678-9,M,Rua das Flores 123
-Maria Souza,987.654.321-00,22/03/1995,maria@email.com,11888888888,98.765.432-1,F,Av Paulista 456
-Carlos Pereira,111.222.333-44,01/01/1988,carlos@email.com,11777777777,11.122.233-3,M,Rua Augusta 789`;
+    const templateContent = `nome_completo,nome_social,cpf
+João da Silva,,123.456.789-09
+Maria Souza,Mari,987.654.321-00
+Carlos Pereira,,111.222.333-44`;
 
     const blob = new Blob([templateContent], {
       type: "text/csv;charset=utf-8;",
