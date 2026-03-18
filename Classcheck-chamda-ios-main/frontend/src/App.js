@@ -10,13 +10,79 @@ import {
   CardContent,
   CardDescription,
   CardHeader,
+  CardTitle,
+} from "./components/ui/card";
+import { Label } from "./components/ui/label";
+import { Badge } from "./components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "./components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "./components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./components/ui/select";
+import { Textarea } from "./components/ui/textarea";
+import { Checkbox } from "./components/ui/checkbox";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "./components/ui/table";
+import { useToast } from "./hooks/use-toast";
+import { Toaster } from "./components/ui/toaster";
+import {
+  Users,
+  GraduationCap,
+  Building2,
   BookOpen,
-  if (loading)
-    return (
-      <div key="alunos-loading" className="p-8 text-center">
-        Carregando alunos...
-      </div>
-    );
+  UserCheck,
+  UserX,
+  FileText,
+  AlertCircle,
+  Calendar,
+  Upload,
+  Download,
+  LogOut,
+  Plus,
+  Eye,
+  EyeOff,
+  Edit,
+  Trash2,
+  Key,
+  TrendingUp,
+  TrendingDown,
+  CheckCircle,
+  Phone,
+  Mail,
+  MapPin,
+  Clock,
+  Save,
+  UserPlus,
+  Shield,
+  BarChart3,
+  Copy,
+  RefreshCw,
+  Info,
+  Filter,
+  Search,
+  X,
+  Bell,
+  BellRing,
+  AlertTriangle,
+  TriangleAlert,
+} from "lucide-react";
 
 const BACKEND_URL =
   process.env.REACT_APP_BACKEND_URL ||
@@ -121,12 +187,152 @@ const classificarRiscoAluno = (percentualPresenca) => {
 const calcularEstatisticasPrecisas = (alunos, chamadas) => {
   const alunosAtivos = REGRAS_PRESENCA.INCLUIR_DESISTENTES_STATS
     ? alunos
-    if (loading)
-      return (
-        <div key="alunos-loading" className="p-8 text-center">
-          Carregando alunos...
-        </div>
-      );
+    : alunos.filter((aluno) => aluno.status !== "desistente");
+
+  const totalAlunos = alunosAtivos.length;
+
+  if (totalAlunos === 0)
+    return {
+      totalAlunos: 0,
+      alunosEmRisco: 0,
+      desistentes: alunos.filter((a) => a.status === "desistente").length,
+      taxaMediaPresenca: 0,
+    };
+
+  // Calcular presença por aluno
+  const estatisticasPorAluno = alunosAtivos.map((aluno) => {
+    const chamadasAluno = chamadas.filter((c) => c.aluno_id === aluno.id);
+    const totalChamadas = chamadasAluno.length;
+    const presencas = chamadasAluno.filter((c) => c.presente).length;
+    const percentual =
+      totalChamadas > 0 ? (presencas / totalChamadas) * 100 : 0;
+
+    return {
+      ...aluno,
+      totalChamadas,
+      presencas,
+      percentualPresenca: percentual,
+      classificacao: classificarRiscoAluno(percentual),
+    };
+  });
+
+  // Estatísticas gerais
+  const alunosEmRisco = estatisticasPorAluno.filter(
+    (a) => a.classificacao === "em_risco" || a.classificacao === "critico",
+  ).length;
+
+  const taxaMediaPresenca =
+    estatisticasPorAluno.length > 0
+      ? estatisticasPorAluno.reduce(
+          (acc, aluno) => acc + aluno.percentualPresenca,
+          0,
+        ) / estatisticasPorAluno.length
+      : 0;
+
+  return {
+    totalAlunos,
+    alunosEmRisco,
+    desistentes: alunos.filter((a) => a.status === "desistente").length,
+    taxaMediaPresenca: Math.round(taxaMediaPresenca * 100) / 100,
+    estatisticasPorAluno,
+  };
+};
+
+// �👥 NOMENCLATURA UNISSEX - OUT/2024 (Fase 1)
+const getUserTypeLabel = (tipo) => {
+  const labels = {
+    admin: "Administrador(a)",
+    instrutor: "Professor(a)",
+    pedagogo: "Coord. Pedagógico",
+    monitor: "Assistente",
+  };
+  return labels[tipo] || tipo;
+};
+
+// 📊 GERADOR CSV COM DADOS PRECISOS - FASE 4
+const gerarCSVComDadosPrecisos = (estatisticasPrecisas, filtrosAplicados) => {
+  console.log("🔧 Gerando CSV com dados precisos Fase 4");
+
+  // 📋 CABEÇALHO APRIMORADO COM NOVOS CAMPOS
+  const headers = [
+    "Nome do Aluno",
+    "CPF",
+    "Total de Chamadas",
+    "Presenças",
+    "Faltas",
+    "% Presença (Preciso)",
+    "Classificação de Risco",
+    "Status do Aluno",
+    "Data de Nascimento",
+    "Email",
+    "Telefone",
+    "Observações",
+  ];
+
+  // 📊 PROCESSAR DADOS COM CÁLCULOS PRECISOS
+  const linhas = estatisticasPrecisas.estatisticasPorAluno.map((aluno) => {
+    const faltas = aluno.totalChamadas - aluno.presencas;
+
+    // 🎯 Traduzir classificação para texto legível
+    const classificacaoTexto =
+      {
+        adequado: "Frequência Adequada",
+        em_risco: "Aluno em Risco",
+        critico: "Situação Crítica",
+      }[aluno.classificacao] || "Não Classificado";
+
+    // 🎯 Status traduzido
+    const statusTexto =
+      {
+        ativo: "Ativo",
+        desistente: "Desistente",
+        concluido: "Concluído",
+      }[aluno.status] || "Ativo";
+
+    return [
+      aluno.nome || "N/A",
+      aluno.cpf || "N/A",
+      aluno.totalChamadas.toString(),
+      aluno.presencas.toString(),
+      faltas.toString(),
+      `${aluno.percentualPresenca.toFixed(2)}%`, // PRECISÃO DE 2 CASAS
+      classificacaoTexto,
+      statusTexto,
+      aluno.data_nascimento || "N/A",
+      aluno.email || "N/A",
+      aluno.telefone || "N/A",
+      aluno.observacoes || "",
+    ];
+  });
+
+  // 📈 RODAPÉ COM ESTATÍSTICAS GERAIS
+  const rodape = [
+    [""],
+    ["=== ESTATÍSTICAS GERAIS (FASE 3) ==="],
+    [`Total de Alunos Ativos: ${estatisticasPrecisas.totalAlunos}`],
+    [`Alunos em Risco: ${estatisticasPrecisas.alunosEmRisco}`],
+    [`Desistentes: ${estatisticasPrecisas.desistentes}`],
+    [
+      `Taxa Média de Presença: ${estatisticasPrecisas.taxaMediaPresenca.toFixed(
+        2,
+      )}%`,
+    ],
+    [""],
+    ["=== REGRAS APLICADAS ==="],
+    [`Mínimo para Aprovação: ≥${REGRAS_PRESENCA.MINIMO_APROVACAO}%`],
+    [
+      `Alerta de Risco: ${REGRAS_PRESENCA.EM_RISCO}% - ${
+        REGRAS_PRESENCA.MINIMO_APROVACAO - 1
+      }%`,
+    ],
+    [`Situação Crítica: <${REGRAS_PRESENCA.EM_RISCO}%`],
+    [
+      `Desistentes nas médias: ${
+        REGRAS_PRESENCA.INCLUIR_DESISTENTES_STATS ? "SIM" : "NÃO"
+      }`,
+    ],
+    [""],
+    [`Relatório gerado em: ${new Date().toLocaleString("pt-BR")}`],
     [`Sistema: IOS - Fase 4 (Cálculos Precisos)`],
   ];
 
@@ -4911,7 +5117,14 @@ const AlunosManager = () => {
       return;
     }
 
-    // ...existing code...
+    if (!formData.data_nascimento) {
+      toast({
+        title: "Campo obrigatório",
+        description: "Data de nascimento é obrigatória",
+        variant: "destructive",
+      });
+      return;
+    }
 
     try {
       if (editingAluno) {
@@ -5324,7 +5537,22 @@ Carlos Pereira,111.222.333-44,01/01/1988,carlos@email.com,11777777777,11.122.233
     return (
       <div key="alunos-loading" className="p-8 text-center">
         Carregando alunos...
-                        {/* Campo removido: Data de Nascimento */}
+      </div>
+    );
+
+  return (
+    <Card key="alunos-content">
+      <CardHeader>
+        <div className="flex justify-between items-center">
+          <div>
+            <CardTitle>Gerenciamento de Alunos</CardTitle>
+            <CardDescription>
+              {user?.tipo === "admin"
+                ? "Gerencie todos os alunos cadastrados no sistema"
+                : `Gerencie alunos das suas turmas (${
+                    user?.curso_nome || "seu curso"
+                  })`}
+            </CardDescription>
           </div>
           <div className="flex gap-2">
             {/* 🚀 BULK UPLOAD BUTTON */}
@@ -5392,19 +5620,23 @@ Carlos Pereira,111.222.333-44,01/01/1988,carlos@email.com,11777777777,11.122.233
 
                       <div className="space-y-2">
                         <Label
-                          htmlFor="nome_social"
+                          htmlFor="idade"
                           className="text-blue-700 font-medium"
                         >
-                          Nome Social
+                          Idade
                         </Label>
                         <Input
-                          id="nome_social"
-                          value={formData.nome_social}
+                          id="idade"
+                          type="number"
+                          value={formData.idade}
                           onChange={(e) =>
-                            setFormData({ ...formData, nome_social: e.target.value })
+                            setFormData({ ...formData, idade: e.target.value })
                           }
-                          placeholder="Ex: Nome Social"
+                          placeholder="Ex: 25"
+                          min="1"
+                          max="120"
                           className="border-blue-300 focus:border-blue-500"
+                          required
                         />
                       </div>
 
@@ -5434,23 +5666,191 @@ Carlos Pereira,111.222.333-44,01/01/1988,carlos@email.com,11777777777,11.122.233
                     <h3 className="text-lg font-semibold text-green-800 mb-3">
                       🎯 Alocação em Turma
                     </h3>
+                    <div className="space-y-2">
+                      <Label
+                        htmlFor="turma_id"
+                        className="text-green-700 font-medium"
+                      >
+                        Turma (Opcional)
+                      </Label>
+                      <Select
+                        value={formData.turma_id}
+                        onValueChange={(value) =>
+                          setFormData({ ...formData, turma_id: value })
+                        }
+                      >
+                        <SelectTrigger className="border-green-300 focus:border-green-500">
+                          <SelectValue placeholder="Selecione uma turma ou deixe em branco" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="sem_turma">
+                            Sem turma (não alocado)
+                          </SelectItem>
+                          {Array.isArray(turmas) &&
+                            turmas.map((turma) => (
+                              <SelectItem key={turma.id} value={turma.id}>
+                                {turma.nome} -{" "}
+                                {turma.curso_nome || "Curso não informado"}
+                              </SelectItem>
+                            ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-green-600">
+                        💡 Você pode deixar sem turma e alocar depois, ou
+                        selecionar uma turma específica
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Campos Complementares */}
+                  <div className="space-y-4">
                     <h3 className="text-lg font-semibold text-gray-700">
                       📄 Informações Complementares
                     </h3>
+
+                    <div className="grid grid-cols-3 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="rg">RG</Label>
+                        <Input
+                          id="rg"
+                          value={formData.rg}
+                          onChange={(e) =>
+                            setFormData({ ...formData, rg: e.target.value })
+                          }
+                          placeholder="00.000.000-0"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="data_nascimento">
+                          Data de Nascimento *
+                        </Label>
+                        <Input
+                          id="data_nascimento"
+                          type="date"
+                          value={formData.data_nascimento}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              data_nascimento: e.target.value,
+                            })
+                          }
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Gênero</Label>
+                        <Select
+                          value={formData.genero}
+                          onValueChange={(value) =>
+                            setFormData({ ...formData, genero: value })
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="masculino">Masculino</SelectItem>
+                            <SelectItem value="feminino">Feminino</SelectItem>
+                            <SelectItem value="outro">Outro</SelectItem>
+                            <SelectItem value="nao_informado">
+                              Não informado
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="telefone">Telefone</Label>
+                        <Input
+                          id="telefone"
+                          value={formData.telefone}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              telefone: e.target.value,
+                            })
+                          }
+                          placeholder="(11) 99999-9999"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="email">Email</Label>
+                        <Input
+                          id="email"
+                          type="email"
+                          value={formData.email}
+                          onChange={(e) =>
+                            setFormData({ ...formData, email: e.target.value })
+                          }
+                          placeholder="aluno@email.com"
+                        />
+                      </div>
+                    </div>
+
                     <div className="space-y-2">
-                      <Label htmlFor="nome_responsavel">
-                        Nome do Responsável
-                      </Label>
+                      <Label htmlFor="endereco">Endereço Completo</Label>
                       <Input
-                        id="nome_responsavel"
-                        value={formData.nome_responsavel}
+                        id="endereco"
+                        value={formData.endereco}
+                        onChange={(e) =>
+                          setFormData({ ...formData, endereco: e.target.value })
+                        }
+                        placeholder="Rua, número, bairro, cidade, CEP"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="nome_responsavel">
+                          Nome do Responsável
+                        </Label>
+                        <Input
+                          id="nome_responsavel"
+                          value={formData.nome_responsavel}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              nome_responsavel: e.target.value,
+                            })
+                          }
+                          placeholder="Para menores de idade"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="telefone_responsavel">
+                          Telefone do Responsável
+                        </Label>
+                        <Input
+                          id="telefone_responsavel"
+                          value={formData.telefone_responsavel}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              telefone_responsavel: e.target.value,
+                            })
+                          }
+                          placeholder="(11) 99999-9999"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="observacoes">Observações</Label>
+                      <Textarea
+                        id="observacoes"
+                        value={formData.observacoes}
                         onChange={(e) =>
                           setFormData({
                             ...formData,
-                            nome_responsavel: e.target.value,
+                            observacoes: e.target.value,
                           })
                         }
-                        placeholder="Para menores de idade"
+                        placeholder="Observações sobre o aluno..."
                       />
                     </div>
                   </div>
