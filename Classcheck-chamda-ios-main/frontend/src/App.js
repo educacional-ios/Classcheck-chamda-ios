@@ -12,42 +12,44 @@ import {
   CardHeader,
   if (loading)
     return (
-      <>
-        <div key="alunos-loading" className="p-8 text-center">
-          Carregando alunos...
-          {/* Campo removido: Data de Nascimento */}
-        </div>
-        <div className="flex gap-2">
-          {/* 🚀 BULK UPLOAD BUTTON */}
-          {user?.tipo !== "monitor" && (
-            <Dialog
-              open={isBulkUploadOpen}
-              onOpenChange={setIsBulkUploadOpen}
-            >
-              <DialogTrigger asChild>
-                <Button className="bg-green-600 hover:bg-green-700">
-                  <Upload className="h-4 w-4 mr-2" />
-                  Importar em Massa
-                </Button>
-              </DialogTrigger>
-            </Dialog>
-          )}
+      if (loading)
+        return (
+          <>
+            <div key="alunos-loading" className="p-8 text-center">
+              Carregando alunos...
+              {/* Campo removido: Data de Nascimento */}
+            </div>
+            <div className="flex gap-2">
+              {/* 🚀 BULK UPLOAD BUTTON */}
+              {user?.tipo !== "monitor" && (
+                <Dialog
+                  open={isBulkUploadOpen}
+                  onOpenChange={setIsBulkUploadOpen}
+                >
+                  <DialogTrigger asChild>
+                    <Button className="bg-green-600 hover:bg-green-700">
+                      <Upload className="h-4 w-4 mr-2" />
+                      Importar em Massa
+                    </Button>
+                  </DialogTrigger>
+                </Dialog>
+              )}
 
-          {/* 🎯 PRODUÇÃO: Botões de teste removidos para usuários finais */}
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button
-                onClick={handleOpenDialog}
-                className="bg-blue-600 hover:bg-blue-700"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Novo Aluno
-              </Button>
-            </DialogTrigger>
-          </Dialog>
-        </div>
-      </>
-    );
+              {/* 🎯 PRODUÇÃO: Botões de teste removidos para usuários finais */}
+              <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button
+                    onClick={handleOpenDialog}
+                    className="bg-blue-600 hover:bg-blue-700"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Novo Aluno
+                  </Button>
+                </DialogTrigger>
+              </Dialog>
+            </div>
+          </>
+        );
   BookOpen,
   UserCheck,
   UserX,
