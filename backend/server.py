@@ -359,7 +359,7 @@ class Aluno(BaseModel):
 class AlunoCreate(BaseModel):
     nome: str  # OBRIGATÓRIO - Nome completo
     cpf: str   # OBRIGATÓRIO - CPF válido
-    data_nascimento: date  # OBRIGATÓRIO - Data de nascimento
+    data_nascimento: Optional[date] = None  # OPCIONAL
     rg: Optional[str] = None
     genero: Optional[str] = None
     telefone: Optional[str] = None
@@ -1859,6 +1859,7 @@ async def bulk_upload_students(
         try:
             # 📋 EXTRAIR CAMPOS COM ALIASES
             nome = get_field(r, "nome_completo", "nome", "full_name", "student_name")
+            nome_social = get_field(r, "nome_social", "nomesocial", "nome social")
             data_nasc_raw = get_field(r, "data_nascimento", "data nascimento", "birthdate", "dob", "data_nasc")
             cpf_raw = get_field(r, "cpf", "CPF", "Cpf", "document")
             
@@ -1972,6 +1973,8 @@ async def bulk_upload_students(
                     doc["endereco"] = endereco
                 if curso_id:
                     doc["curso_id"] = curso_id
+                if nome_social:
+                    doc["nome_social"] = nome_social
                 
                 # Adicionar unidade do usuário se disponível
                 if hasattr(current_user, 'unidade_id') and getattr(current_user, 'unidade_id', None):
