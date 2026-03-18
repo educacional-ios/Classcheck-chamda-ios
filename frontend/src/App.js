@@ -5116,6 +5116,16 @@ const AlunosManager = () => {
       });
       return;
     }
+
+    if (!formData.data_nascimento) {
+      toast({
+        title: "Campo obrigatório",
+        description: "Data de nascimento é obrigatória",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       if (editingAluno) {
         await axios.put(`${API}/students/${editingAluno.id}`, formData);
@@ -5319,8 +5329,7 @@ const AlunosManager = () => {
     try {
       await axios.post(`${API}/dropouts`, {
         aluno_id: selectedAluno.id,
-        motivo_codigo: "outro",
-        motivo_descricao: dropoutReason,
+        motivo: dropoutReason,
         data_desistencia: new Date().toISOString().split("T")[0],
       });
 
@@ -5480,10 +5489,11 @@ const AlunosManager = () => {
     URL.revokeObjectURL(link.href);
   };
 
-  const templateContent = `nome_completo,nome_social,cpf
-João da Silva,,123.456.789-09
-Maria Souza,Mari,987.654.321-00
-Carlos Pereira,,111.222.333-44`;
+  const downloadTemplate = () => {
+    const templateContent = `nome_completo,cpf,data_nascimento,email,telefone,rg,genero,endereco
+João da Silva,123.456.789-09,12/05/1990,joao@email.com,11999999999,12.345.678-9,M,Rua das Flores 123
+Maria Souza,987.654.321-00,22/03/1995,maria@email.com,11888888888,98.765.432-1,F,Av Paulista 456
+Carlos Pereira,111.222.333-44,01/01/1988,carlos@email.com,11777777777,11.122.233-3,M,Rua Augusta 789`;
 
     const blob = new Blob([templateContent], {
       type: "text/csv;charset=utf-8;",
@@ -5698,6 +5708,101 @@ Carlos Pereira,,111.222.333-44`;
                       📄 Informações Complementares
                     </h3>
 
+                    <div className="grid grid-cols-3 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="rg">RG</Label>
+                        <Input
+                          id="rg"
+                          value={formData.rg}
+                          onChange={(e) =>
+                            setFormData({ ...formData, rg: e.target.value })
+                          }
+                          placeholder="00.000.000-0"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="data_nascimento">
+                          Data de Nascimento *
+                        </Label>
+                        <Input
+                          id="data_nascimento"
+                          type="date"
+                          value={formData.data_nascimento}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              data_nascimento: e.target.value,
+                            })
+                          }
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Gênero</Label>
+                        <Select
+                          value={formData.genero}
+                          onValueChange={(value) =>
+                            setFormData({ ...formData, genero: value })
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="masculino">Masculino</SelectItem>
+                            <SelectItem value="feminino">Feminino</SelectItem>
+                            <SelectItem value="outro">Outro</SelectItem>
+                            <SelectItem value="nao_informado">
+                              Não informado
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="telefone">Telefone</Label>
+                        <Input
+                          id="telefone"
+                          value={formData.telefone}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              telefone: e.target.value,
+                            })
+                          }
+                          placeholder="(11) 99999-9999"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="email">Email</Label>
+                        <Input
+                          id="email"
+                          type="email"
+                          value={formData.email}
+                          onChange={(e) =>
+                            setFormData({ ...formData, email: e.target.value })
+                          }
+                          placeholder="aluno@email.com"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="endereco">Endereço Completo</Label>
+                      <Input
+                        id="endereco"
+                        value={formData.endereco}
+                        onChange={(e) =>
+                          setFormData({ ...formData, endereco: e.target.value })
+                        }
+                        placeholder="Rua, número, bairro, cidade, CEP"
+                      />
+                    </div>
+
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="nome_responsavel">
@@ -5732,6 +5837,21 @@ Carlos Pereira,,111.222.333-44`;
                           placeholder="(11) 99999-9999"
                         />
                       </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="observacoes">Observações</Label>
+                      <Textarea
+                        id="observacoes"
+                        value={formData.observacoes}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            observacoes: e.target.value,
+                          })
+                        }
+                        placeholder="Observações sobre o aluno..."
+                      />
                     </div>
                   </div>
 
@@ -5987,11 +6107,16 @@ Carlos Pereira,,111.222.333-44`;
               <div className="text-sm text-blue-700 space-y-1">
                 <p>
                   <strong>Campos obrigatórios:</strong> nome_completo, cpf,
-                  </p>
-                <p>
-                  <strong>Campos opcionais:</strong> nome_social
+                  data_nascimento
                 </p>
-               <p>
+                <p>
+                  <strong>Campos opcionais:</strong> email, telefone, rg,
+                  genero, endereco
+                </p>
+                <p>
+                  <strong>Formato data:</strong> DD/MM/AAAA (ex: 15/03/1990)
+                </p>
+                <p>
                   <strong>Formato CPF:</strong> Com ou sem pontuação (ex:
                   123.456.789-09 ou 12345678909)
                 </p>
@@ -7308,184 +7433,4 @@ const ProtectedRoute = ({ children }) => {
 
   return children;
 };
-
-// 🔍 COMPONENTE DE DEBUG UNIVERSAL - Para teste em outros computadores
-const DebugPanel = () => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [logs, setLogs] = useState([]);
-
-  useEffect(() => {
-    const savedLogs = JSON.parse(
-      localStorage.getItem("ios_debug_logs") || "[]",
-    );
-    setLogs(savedLogs.slice(-20)); // Últimos 20 logs
-  }, [isOpen]);
-
-  const toggleDebug = () => {
-    const newDebugMode = !DEBUG_MODE;
-    if (newDebugMode) {
-      localStorage.setItem("ios_debug", "true");
-      debugLog("DEBUG MODE ATIVADO", { userAgent: navigator.userAgent });
-    } else {
-      localStorage.setItem("ios_debug", "false");
-    }
-    window.location.reload(); // Recarregar para aplicar o modo debug
-  };
-
-  const clearLogs = () => {
-    localStorage.removeItem("ios_debug_logs");
-    setLogs([]);
-    debugLog("Logs limpos pelo usuário");
-  };
-
-  const exportLogs = () => {
-    const allLogs = JSON.parse(localStorage.getItem("ios_debug_logs") || "[]");
-    const dataStr = JSON.stringify(allLogs, null, 2);
-    const blob = new Blob([dataStr], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `ios_debug_logs_${
-      new Date().toISOString().split("T")[0]
-    }.json`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  };
-
-  const testConnection = async () => {
-    debugLog("TESTE DE CONEXÃO INICIADO");
-    try {
-      const response = await axios.get(`${API}/ping`, { timeout: 10000 });
-      debugLog("TESTE DE CONEXÃO SUCESSO", response.data);
-      alert(
-        `✅ Conexão OK!\nBackend: ${response.data.message}\nTimestamp: ${response.data.timestamp}`,
-      );
-    } catch (error) {
-      debugLog("TESTE DE CONEXÃO ERRO", {
-        message: error.message,
-        status: error.response?.status,
-        data: error.response?.data,
-      });
-      alert(
-        `❌ Erro de Conexão!\nErro: ${error.message}\nStatus: ${
-          error.response?.status || "N/A"
-        }`,
-      );
-    }
-  };
-
-  const testReactDOM = () => {
-    debugLog("TESTE REACT DOM INICIADO - Simulando mudanças de estado");
-
-    // Simular as mudanças de estado que causam o problema
-    try {
-      // Criar elementos DOM temporários para testar
-      const testDiv = document.createElement("div");
-      testDiv.id = "react-dom-test";
-      document.body.appendChild(testDiv);
-
-      // Simular remoção imediata (similar ao que acontece na chamada)
-      setTimeout(() => {
-        if (document.getElementById("react-dom-test")) {
-          document.body.removeChild(testDiv);
-          debugLog("TESTE REACT DOM SUCESSO - Remoção de elemento funcionou");
-          alert(
-            "✅ Teste React DOM OK - Não há problema de removeChild neste computador",
-          );
-        }
-      }, 10);
-    } catch (error) {
-      debugLog("TESTE REACT DOM ERRO", {
-        message: error.message,
-        stack: error.stack,
-      });
-      alert(`❌ Erro React DOM detectado!\nErro: ${error.message}`);
-    }
-  };
-
-  if (!isOpen) {
-    return (
-      <div className="fixed bottom-4 right-4 z-50">
-        <Button
-          onClick={() => setIsOpen(true)}
-          className="bg-purple-600 hover:bg-purple-700 text-white shadow-lg"
-          size="sm"
-        >
-          🔍 Debug
-        </Button>
-      </div>
-    );
-  }
-
-  return (
-    <div className="fixed bottom-4 right-4 z-50 w-96 max-h-96 bg-white border rounded-lg shadow-xl">
-      <div className="p-4 border-b flex justify-between items-center">
-        <h3 className="font-semibold">Debug Panel</h3>
-        <Button onClick={() => setIsOpen(false)} variant="ghost" size="sm">
-          <X className="h-4 w-4" />
-        </Button>
-      </div>
-
-      <div className="p-4 space-y-2">
-        {/* Instruções para usuários */}
-        <div className="text-xs text-gray-600 bg-yellow-50 p-2 rounded border">
-          <p className="font-semibold">🔍 Instruções para Fabiana e Ione:</p>
-          <p>1. Ative o Debug Mode</p>
-          <p>2. Teste a conexão com "Testar API"</p>
-          <p>3. Faça uma chamada normalmente</p>
-          <p>4. Se der erro, exporte os logs e envie</p>
-        </div>
-
-        <div className="flex justify-between items-center">
-          <span className="text-sm">Debug Mode:</span>
-          <Button
-            onClick={toggleDebug}
-            variant={DEBUG_MODE ? "destructive" : "default"}
-            size="sm"
-          >
-            {DEBUG_MODE ? "Desativar" : "Ativar"}
-          </Button>
-        </div>
-
-        <div className="flex flex-wrap gap-2">
-          <Button onClick={testConnection} variant="default" size="sm">
-            Testar API
-          </Button>
-          <Button onClick={testReactDOM} variant="secondary" size="sm">
-            Testar DOM
-          </Button>
-          <Button onClick={clearLogs} variant="outline" size="sm">
-            Limpar
-          </Button>
-          <Button onClick={exportLogs} variant="outline" size="sm">
-            Exportar
-          </Button>
-        </div>
-
-        <div className="max-h-48 overflow-y-auto text-xs font-mono bg-gray-100 p-2 rounded">
-          {logs.length === 0 ? (
-            <p className="text-gray-500">Nenhum log disponível</p>
-          ) : (
-            logs.map((log, index) => (
-              <div key={index} className="mb-1">
-                <span className="text-gray-500">
-                  [{log.timestamp.split("T")[1].split(".")[0]}]
-                </span>
-                <span className="ml-2">{log.message}</span>
-                {log.data && (
-                  <span className="text-blue-600 ml-2">
-                    {JSON.stringify(log.data)}
-                  </span>
-                )}
-              </div>
-            ))
-          )}
-        </div>
-      </div>
-    </div>
-  );
-};
-
 export default App;
