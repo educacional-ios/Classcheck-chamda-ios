@@ -5176,20 +5176,10 @@ const AlunosManager = () => {
   };
 
   const resetForm = () => {
-    setFormData({
-      nome: "",
-      cpf: "",
-      idade: "",
-      rg: "",
-      data_nascimento: "",
-      genero: "",
-      telefone: "",
-      email: "",
-      endereco: "",
-      nome_responsavel: "",
-      telefone_responsavel: "",
-      observacoes: "",
-      turma_id: "", // ✅ Campo turma resetado
+nome: "",
+    cpf: "",
+    nome_social: "",
+    turma_id: "", // ✅ Campo turma resetado
     });
   };
 
@@ -5612,24 +5602,21 @@ Carlos Pereira,,111.222.333-44`;
 
                       <div className="space-y-2">
                         <Label
-                          htmlFor="idade"
+                          htmlFor="nome_social"
                           className="text-blue-700 font-medium"
                         >
-                          Idade
+                          Nome Social
                         </Label>
                         <Input
-                          id="idade"
-                          type="number"
-                          value={formData.idade}
+                          id="nome_social"
+                          value={formData.nome_social}
                           onChange={(e) =>
-                            setFormData({ ...formData, idade: e.target.value })
+                            setFormData({ ...formData, nome_social: e.target.value })
                           }
-                          placeholder="Ex: 25"
-                          min="1"
-                          max="120"
+                          placeholder="Ex: Mari"
                           className="border-blue-300 focus:border-blue-500"
-                          required
                         />
+                      </div>
                       </div>
 
                       <div className="space-y-2">
