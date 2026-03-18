@@ -10,42 +10,44 @@ import {
   CardContent,
   CardDescription,
   CardHeader,
-  CardTitle,
-} from "./components/ui/card";
-import { Label } from "./components/ui/label";
-import { Badge } from "./components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "./components/ui/tabs";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "./components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "./components/ui/select";
-import { Textarea } from "./components/ui/textarea";
-import { Checkbox } from "./components/ui/checkbox";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "./components/ui/table";
-import { useToast } from "./hooks/use-toast";
-import { Toaster } from "./components/ui/toaster";
-import {
-  Users,
-  GraduationCap,
-  Building2,
+  if (loading)
+    return (
+      <>
+        <div key="alunos-loading" className="p-8 text-center">
+          Carregando alunos...
+          {/* Campo removido: Data de Nascimento */}
+        </div>
+        <div className="flex gap-2">
+          {/* 🚀 BULK UPLOAD BUTTON */}
+          {user?.tipo !== "monitor" && (
+            <Dialog
+              open={isBulkUploadOpen}
+              onOpenChange={setIsBulkUploadOpen}
+            >
+              <DialogTrigger asChild>
+                <Button className="bg-green-600 hover:bg-green-700">
+                  <Upload className="h-4 w-4 mr-2" />
+                  Importar em Massa
+                </Button>
+              </DialogTrigger>
+            </Dialog>
+          )}
+
+          {/* 🎯 PRODUÇÃO: Botões de teste removidos para usuários finais */}
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button
+                onClick={handleOpenDialog}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Novo Aluno
+              </Button>
+            </DialogTrigger>
+          </Dialog>
+        </div>
+      </>
+    );
   BookOpen,
   UserCheck,
   UserX,
