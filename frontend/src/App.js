@@ -5109,12 +5109,17 @@ const AlunosManager = () => {
     }
 
      try {
-      if (editingAluno) {
-        await axios.put(`${API}/students/${editingAluno.id}`, formData);
-        toast({
-          title: "Aluno atualizado com sucesso!",
-          description: "As informações do aluno foram atualizadas.",
-        });
+if (editingAluno) {
+  const updatePayload = {
+    nome: formData.nome,
+    cpf: formData.cpf,
+    nome_social: formData.nome_social || null,
+  };
+  await axios.put(`${API}/students/${editingAluno.id}`, updatePayload);
+  toast({
+    title: "Aluno atualizado com sucesso!",
+    description: "As informações do aluno foram atualizadas.",
+  });
       } else {
         const response = await axios.post(`${API}/students`, formData);
         const novoAlunoId = response.data.id;
