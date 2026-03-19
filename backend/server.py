@@ -342,8 +342,8 @@ class CursoUpdate(BaseModel):
 class Aluno(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     nome: str  # OBRIGATÓRIO - Nome completo
-    cpf: str   # OBRIGATÓRIO - CPF válido
-    data_nascimento: Optional[date] = None  # OPCIONAL para compatibilidade com dados existentes
+    nome_social: Optional[str] = None  # ← ADICIONAR AQUI
+    data_nascimento: Optional[date] = None
     rg: Optional[str] = None
     genero: Optional[str] = None
     telefone: Optional[str] = None
@@ -2762,14 +2762,14 @@ async def get_turma_students(turma_id: str, current_user: UserResponse = Depends
         "status": {"$ne": "desistente"}  # Excluir alunos desistentes
     }).to_list(1000)
     
-    # Clean up MongoDB-specific fields and parse dates
+# Clean up MongoDB-specific fields and parse dates
     result = []
     for aluno in alunos:
-        # Remove MongoDB ObjectId field
         if '_id' in aluno:
             del aluno['_id']
-        # Parse dates and clean up the data
         cleaned_aluno = parse_from_mongo(aluno)
+        if 'nome_social' not in cleaned_aluno:
+            cleaned_aluno['nome_social'] = None
         result.append(cleaned_aluno)
     
     return result
