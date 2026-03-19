@@ -3036,7 +3036,71 @@ async def get_motivos_desistencia():
     ]
     
     return MOTIVOS_DESISTENCIA
+# MOTIVOS GERENCIÁVEIS PELO ADMIN
+class MotivoDesistenciaDB(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    descricao: str
+    ativo: bool = True
+    created_by: Optional[str] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
+class MotivoDesistenciaCreate(BaseModel):
+    descricao: str
+
+class MotivoDesistenciaUpdate(BaseModel):
+    descricao: Optional[str] = None
+    ativo: Optional[bool] = None
+
+@api_router.get("/dropout-reasons")
+async def get_dropout_reasons(current_user: UserResponse = Depends(get_current_user)):
+    motivos = await db.motivos_desistencia.find({"ativo": True}).sort("descricao", 1).to_list(1000)
+    for m in motivos:
+        m.pop("_id", None)
+    return motivos
+
+@api_router.get("/dropout-reasons/all")
+async def get_all_dropout_reasons(current_user: UserResponse = Depends(get_current_user)):
+    check_admin_permission(current_user)
+    motivos = await db.motivos_desistencia.find({}).sort("descricao", 1).to_list(1000)
+    for m in motivos:
+        m.pop("_id", None)
+    return motivos
+
+@api_router.post("/dropout-reasons")
+async def create_dropout_reason(motivo: MotivoDesistenciaCreate, current_user: UserResponse = Depends(get_current_user)):
+    check_admin_permission(current_user)
+    existing = await db.motivos_desistencia.find_one({
+        "descricao": {"$regex": f"^{re.escape(motivo.descricao.strip())}$", "$options": "i"}
+    })
+    if existing:
+        raise HTTPException(status_code=400, detail="Já existe um motivo com esta descrição")
+    novo = MotivoDesistenciaDB(descricao=motivo.descricao.strip().upper(), created_by=current_user.id)
+    await db.motivos_desistencia.insert_one(novo.dict())
+    return novo
+
+@api_router.put("/dropout-reasons/{motivo_id}")
+async def update_dropout_reason(motivo_id: str, motivo_update: MotivoDesistenciaUpdate, current_user: UserResponse = Depends(get_current_user)):
+    check_admin_permission(current_user)
+    update_data = {k: v for k, v in motivo_update.dict().items() if v is not None}
+    if "descricao" in update_data:
+        update_data["descricao"] = update_data["descricao"].strip().upper()
+    if not update_data:
+        raise HTTPException(status_code=400, detail="Nenhum dado para atualizar")
+    result = await db.motivos_desistencia.update_one({"id": motivo_id}, {"$set": update_data})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Motivo não encontrado")
+    updated = await db.motivos_desistencia.find_one({"id": motivo_id})
+    updated.pop("_id", None)
+    return updated
+
+@api_router.delete("/dropout-reasons/{motivo_id}")
+async def delete_dropout_reason(motivo_id: str, current_user: UserResponse = Depends(get_current_user)):
+    check_admin_permission(current_user)
+    result = await db.motivos_desistencia.update_one({"id": motivo_id}, {"$set": {"ativo": False}})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Motivo não encontrado")
+    return {"message": "Motivo desativado com sucesso"}
+    
 # DESISTENTES ROUTES
 @api_router.post("/dropouts", response_model=Desistente)
 async def create_desistente(desistente_create: DesistenteCreate, current_user: UserResponse = Depends(get_current_user)):
