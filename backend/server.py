@@ -342,7 +342,8 @@ class CursoUpdate(BaseModel):
 class Aluno(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     nome: str  # OBRIGATÓRIO - Nome completo
-    nome_social: Optional[str] = None  # ← ADICIONAR AQUI
+    nome_social: Optional[str] = None
+    cpf: Optional[str] = None  # ← ADICIONAR ESTA LINHA
     data_nascimento: Optional[date] = None
     rg: Optional[str] = None
     genero: Optional[str] = None
@@ -357,9 +358,10 @@ class Aluno(BaseModel):
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class AlunoCreate(BaseModel):
-    nome: str  # OBRIGATÓRIO - Nome completo
-    cpf: str   # OBRIGATÓRIO - CPF válido
-    data_nascimento: Optional[date] = None  # OPCIONAL
+    nome: str
+    cpf: str
+    nome_social: Optional[str] = None  # ← ADICIONAR ESTA LINHA
+    data_nascimento: Optional[date] = None
     rg: Optional[str] = None
     genero: Optional[str] = None
     telefone: Optional[str] = None
@@ -368,7 +370,7 @@ class AlunoCreate(BaseModel):
     nome_responsavel: Optional[str] = None
     telefone_responsavel: Optional[str] = None
     observacoes: Optional[str] = None
-
+    
 class AlunoUpdate(BaseModel):
     nome: Optional[str] = None
     telefone: Optional[str] = None
