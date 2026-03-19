@@ -373,6 +373,7 @@ class AlunoCreate(BaseModel):
     
 class AlunoUpdate(BaseModel):
     nome: Optional[str] = None
+    nome_social: Optional[str] = None 
     telefone: Optional[str] = None
     email: Optional[str] = None
     endereco: Optional[str] = None
