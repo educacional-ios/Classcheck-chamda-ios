@@ -290,7 +290,7 @@ const gerarCSVComDadosPrecisos = (estatisticasPrecisas, filtrosAplicados) => {
       }[aluno.status] || "Ativo";
 
     return [
-      aluno.nome || "N/A",
+      aluno.nome_social || aluno.nome,
       aluno.cpf || "N/A",
       aluno.totalChamadas.toString(),
       aluno.presencas.toString(),
@@ -643,7 +643,7 @@ const AttendanceModal = ({ open, onClose, turma, onComplete }) => {
   const [records, setRecords] = useState(
     turma?.alunos?.map((aluno) => ({
       aluno_id: aluno.id,
-      nome: aluno.nome,
+      nome: aluno.nome_social || aluno.nome,
       presente: true,
     })) || [],
   );
@@ -654,7 +654,7 @@ const AttendanceModal = ({ open, onClose, turma, onComplete }) => {
       setRecords(
         turma.alunos.map((aluno) => ({
           aluno_id: aluno.id,
-          nome: aluno.nome,
+          nome: aluno.nome_social || aluno.nome,
           presente: true,
         })),
       );
@@ -2436,7 +2436,7 @@ const ChamadaManager = () => {
                         </div>
 
                         <div className="flex-1">
-                          <p className="font-medium">{aluno.nome}</p>
+                          <p className="font-medium">{aluno.nome_social || aluno.nome}</p>
                           <p className="text-sm text-gray-500">
                             CPF: {aluno.cpf}
                           </p>
