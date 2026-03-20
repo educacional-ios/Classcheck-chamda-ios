@@ -253,6 +253,7 @@ class UserCreate(BaseModel):
 class UserUpdate(BaseModel):
     nome: Optional[str] = None
     email: Optional[EmailStr] = None
+    tipo: Optional[str] = None
     telefone: Optional[str] = None
     ativo: Optional[bool] = None
     unidade_id: Optional[str] = None
