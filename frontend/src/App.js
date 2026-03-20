@@ -2732,7 +2732,14 @@
       e.preventDefault();
       try {
         if (editingUser) {
-          await axios.put(`${API}/users/${editingUser.id}`, formData);
+          await axios.put(`${API}/users/${editingUser.id}`, {
+          nome: formData.nome,
+          email: formData.email,
+          tipo: formData.tipo,
+          telefone: formData.telefone,
+          unidade_id: formData.unidade_id,
+          curso_id: formData.curso_id,
+        });       
           toast({
             title: "Usuário atualizado com sucesso!",
             description: "As informações do usuário foram atualizadas.",
