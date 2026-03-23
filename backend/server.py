@@ -631,33 +631,54 @@ def today_iso_date(tz=None):
 
 # Bulk Upload Helper Functions
 def normalize_cpf(raw: str) -> str:
-    """Remove all non-digit characters from CPF"""
+    """Remove pontos, traços e espaços do CPF — aceita 123.456.789-09 ou 12345678909"""
     if raw is None:
         return ""
-    s = re.sub(r"\D", "", str(raw))
+    # Tira espaços nas bordas
+    s = str(raw).strip()
+    # Remove ponto, traço e espaço
+    s = s.replace(".", "").replace("-", "").replace(" ", "")
+    # Remove qualquer outro símbolo que sobrar
+    s = re.sub(r"\D", "", s)
     return s
-
-def validate_cpf(cpf: str) -> bool:
-    """Validate Brazilian CPF number"""
+def validate_cpf_formato(cpf: str) -> bool:
+    """
+    Verifica apenas o formato: 11 dígitos numéricos.
+    Não faz cálculo matemático.
+    """
     cpf = normalize_cpf(cpf)
     if len(cpf) != 11:
         return False
-    # evita sequências iguais
+    if not cpf.isdigit():
+        return False
+    return True
+
+
+def validate_cpf_matematica(cpf: str) -> bool:
+    """
+    Faz a validação matemática completa do CPF brasileiro.
+    Verifica se os 2 últimos dígitos batem com o cálculo dos 9 primeiros.
+    Retorna True se o CPF é matematicamente válido.
+    Retorna False se o CPF existe mas não passa no cálculo (pode ser CPF legado).
+    """
+    cpf = normalize_cpf(cpf)
+
+    # Rejeita sequências repetidas como 111.111.111-11
     if cpf == cpf[0] * 11:
         return False
 
-    def calc_digit(cpf_slice: str) -> int:
-        size = len(cpf_slice) + 1
+    def calcular_digito(slice_cpf: str) -> int:
+        tamanho = len(slice_cpf) + 1
         total = 0
-        for i, ch in enumerate(cpf_slice):
-            total += int(ch) * (size - i)
-        r = total % 11
-        return 0 if r < 2 else 11 - r
+        for i, digito in enumerate(slice_cpf):
+            total += int(digito) * (tamanho - i)
+        resto = total % 11
+        return 0 if resto < 2 else 11 - resto
 
-    d1 = calc_digit(cpf[:9])
-    d2 = calc_digit(cpf[:10])
-    return d1 == int(cpf[9]) and d2 == int(cpf[10])
-
+    digito1 = calcular_digito(cpf[:9])
+    digito2 = calcular_digito(cpf[:10])
+    return digito1 == int(cpf[9]) and digito2 == int(cpf[10])
+    
 def parse_date_str(s: str) -> date:
     """Parse date string in various formats"""
     if s is None:
@@ -1883,15 +1904,41 @@ async def bulk_upload_students(
                 })
                 continue
             
-            # ✅ VALIDAÇÃO E NORMALIZAÇÃO CPF
+# ✅ NORMALIZAÇÃO E VALIDAÇÃO CPF
             cpf_norm = normalize_cpf(cpf_raw)
-            if not validate_cpf(cpf_norm):
+
+            # ETAPA 1: Verificar formato (11 dígitos numéricos)
+            # Se falhar aqui, rejeita — CPF impossível de usar
+            if not validate_cpf_formato(cpf_norm):
                 errors.append({
                     "line": line,
-                    "error": f"CPF inválido: {cpf_raw}",
-                    "data": {"cpf_original": cpf_raw, "cpf_normalized": cpf_norm}
+                    "error": (
+                        f"CPF com formato inválido: '{cpf_raw}'. "
+                        f"Após remover pontos e traços ficou '{cpf_norm}' "
+                        f"({len(cpf_norm)} dígitos). "
+                        f"O CPF deve ter exatamente 11 dígitos numéricos."
+                    ),
+                    "data": {
+                        "nome": nome,
+                        "cpf_original": cpf_raw,
+                        "cpf_normalizado": cpf_norm,
+                        "digitos_encontrados": len(cpf_norm),
+                        "motivo": "formato_invalido"
+                    }
                 })
                 continue
+
+            # ETAPA 2: Verificar matemática
+            # Se falhar aqui, IMPORTA o aluno mas avisa com alerta
+            cpf_matematicamente_valido = validate_cpf_matematica(cpf_norm)
+            aviso_cpf = None
+            if not cpf_matematicamente_valido:
+                aviso_cpf = (
+                    f"CPF '{cpf_raw}' importado com aviso: "
+                    f"os dígitos verificadores não batem com o cálculo padrão. "
+                    f"Verifique se o CPF está correto no documento do aluno."
+                )
+                print(f"⚠️ CPF com aviso na linha {line}: {cpf_raw} — {nome}")
             
             # ✅ VALIDAÇÃO DATA DE NASCIMENTO
             data_nasc = None
@@ -1987,6 +2034,20 @@ async def bulk_upload_students(
                 await db.alunos.insert_one(doc)
                 inserted += 1
                 aluno_id_to_use = new_id
+
+                # Se teve aviso de CPF, registrar nos avisos
+                if aviso_cpf:
+                    errors.append({
+                        "line": line,
+                        "error": aviso_cpf,
+                        "data": {
+                            "nome": nome,
+                            "cpf_original": cpf_raw,
+                            "cpf_normalizado": cpf_norm,
+                            "motivo": "cpf_aviso_matematica",
+                            "acao": "aluno_importado_com_aviso"
+                        }
+                    })
                 
             # 🎯 ASSOCIAR À TURMA SE FORNECIDA
             if turma_id and aluno_id_to_use:
@@ -2032,28 +2093,42 @@ async def bulk_upload_students(
             print(f"❌ Erro na linha {line}: {e}")
             continue
     
-    # 📊 RESUMO FINAL
+    
+# Separar erros reais de avisos (CPF importado mas com alerta)
+    erros_reais = [
+        e for e in errors
+        if e.get("data", {}).get("motivo") != "cpf_aviso_matematica"
+    ]
+    avisos_cpf = [
+        e for e in errors
+        if e.get("data", {}).get("motivo") == "cpf_aviso_matematica"
+    ]
+
     summary = {
         "total_processed": len(rows),
         "inserted": inserted,
         "updated": updated,
         "skipped": skipped,
-        "errors_count": len(errors),
-        "errors": errors[:50],  # Limitar para não sobrecarregar resposta
+        "errors_count": len(erros_reais),
+        "warnings_count": len(avisos_cpf),
+        "errors": erros_reais[:50],
+        "warnings": avisos_cpf[:50],
         "success_rate": f"{((inserted + updated + skipped) / len(rows) * 100):.1f}%" if rows else "0%"
     }
-    
-    print(f"✅ Bulk upload concluído:")
-    print(f"   📊 Total processado: {len(rows)}")
-    print(f"   ➕ Inseridos: {inserted}")
-    print(f"   🔄 Atualizados: {updated}")
-    print(f"   ⏭️ Pulados: {skipped}")
-    print(f"   ❌ Erros: {len(errors)}")
-    print(f"   📈 Taxa de sucesso: {summary['success_rate']}")
-    
+
     return {
         "success": True,
-        "message": f"Upload concluído: {inserted} inseridos, {updated} atualizados, {skipped} pulados, {len(errors)} erros",
+        "message": (
+            f"Upload concluído: {inserted} inseridos, {updated} atualizados, "
+            f"{skipped} pulados, {len(erros_reais)} erros, {len(avisos_cpf)} avisos de CPF"
+        ),
+        "resumo": {
+            "sucessos": inserted + updated,
+            "erros": len(erros_reais),
+            "avisos": len(avisos_cpf),
+            "duplicados": skipped,
+            "total": len(rows)
+        },
         "summary": summary
     }
 
@@ -4341,10 +4416,14 @@ async def get_pending_calls(current_user: UserResponse = Depends(get_current_use
     
     for turma in turmas:
         try:
-            # 📅 Buscar dados do curso para verificar dias de aula
+        # 📅 Buscar dados do curso para verificar dias de aula
             curso = await db.cursos.find_one({"id": turma.get("curso_id")})
-            dias_aula = curso.get("dias_aula", ["segunda", "terca", "quarta", "quinta"]) if curso else ["segunda", "terca", "quarta", "quinta"]
-            
+            if curso and curso.get("dias_aula"):
+                dias_aula = curso.get("dias_aula")
+                
+            else:
+                # Padrão: segunda a sexta se curso não tiver dias configurados
+                dias_aula = ["segunda", "terca", "quarta", "quinta", "sexta"]            
             # Buscar dados dos instrutores, unidade e curso
             instrutor_ids = turma.get("instrutor_ids", [])
             instrutores_nomes = []
@@ -5055,15 +5134,31 @@ async def get_pending_attendances_for_instructor(current_user: UserResponse = De
             curso_id = t.get("curso_id")
             
             # 🎯 BUSCAR DIAS DA SEMANA DO CURSO (NÃO DA TURMA!)
-            dias_semana = []
+            # dias_aula do curso são STRINGS: ["segunda", "terca", "sabado"]
+            # weekday() do Python retorna NÚMEROS: 0=segunda, 6=domingo
+            # Precisamos converter strings para números antes de comparar
+            DIAS_MAP = {
+                "segunda": 0,
+                "terca":   1,
+                "quarta":  2,
+                "quinta":  3,
+                "sexta":   4,
+                "sabado":  5,
+                "domingo": 6
+            }
+
+            dias_semana_numeros = []
             if curso_id:
                 curso = await db.cursos.find_one({"id": curso_id})
                 if curso:
-                    dias_semana = curso.get("dias_semana", [])
-            
-            # Se o curso não tem dias específicos, usar dias úteis como padrão (segunda=0 a sexta=4)
-            if not dias_semana:
-                dias_semana = [0, 1, 2, 3, 4]  # Segunda a Sexta
+                    dias_strings = curso.get("dias_aula", [])
+                    dias_semana_numeros = [
+                        DIAS_MAP[d] for d in dias_strings if d in DIAS_MAP
+                    ]
+
+            # Se o curso não tem dias configurados, usar segunda a sexta como padrão
+            if not dias_semana_numeros:
+                dias_semana_numeros = [0, 1, 2, 3, 4]  # Segunda a Sexta
                 
             # 📅 VERIFICAR PERÍODO DA TURMA
             data_inicio = t.get("data_inicio")
@@ -5090,7 +5185,7 @@ async def get_pending_attendances_for_instructor(current_user: UserResponse = De
                 
                 # 2) Verificar se é dia de aula (baseado em dias_semana do curso)
                 dia_semana = data_verificar.weekday()  # 0=segunda, 6=domingo
-                if dia_semana not in dias_semana:
+                if dia_semana not in dias_semana_numeros:
                     continue  # Não é dia de aula programado
                 
                 # Verificar se já existe attendance para esta data
