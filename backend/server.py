@@ -3861,7 +3861,7 @@ async def generate_simple_csv_stream(chamadas):
     writer.writerow([
         "Aluno", "CPF", "Matricula", "Turma", "Tipo_Turma", "Curso", "Data", 
         "Hora_Inicio", "Hora_Fim", "Status", "Hora_Registro", 
-        "Responsavel", "Tipo_Responsavel", "Unidade", "Observacoes"
+        "Responsavel_Turma", "Tipo_Responsavel", "Responsavel_Chamada", "Unidade", "Observacoes"
     ])
     yield buffer.getvalue()
     buffer.seek(0)
@@ -3901,6 +3901,12 @@ async def generate_simple_csv_stream(chamadas):
             
             # Dados da chamada
             data_chamada = chamada.get("data", "")
+            responsavel_chamada_id = chamada.get("created_by", "")
+            responsavel_chamada_nome = ""
+            if responsavel_chamada_id:
+                resp_chamada = await db.usuarios.find_one({"id": responsavel_chamada_id})
+                if resp_chamada:
+                    responsavel_chamada_nome = resp_chamada.get("nome", "")
             observacoes_gerais = chamada.get("observacoes", "")
             
             # Horários da turma
@@ -3963,6 +3969,7 @@ async def generate_simple_csv_stream(chamadas):
                         hora_registro,
                         responsavel_nome,
                         tipo_responsavel_label,
+                        responsavel_chamada_nome,
                         unidade.get("nome", "") if unidade else "",
                         observacoes_texto
                     ])
