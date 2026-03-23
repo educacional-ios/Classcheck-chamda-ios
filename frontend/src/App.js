@@ -1336,7 +1336,7 @@
     };
   
     const formatDate = (dateString) => {
-      const date = new Date(dateString);
+      const date = new Date(dateString + "T00:00:00");
       return date.toLocaleDateString("pt-BR");
     };
   
@@ -3237,7 +3237,10 @@
   
         // Garantir que todos os dados sejam arrays e só atualizar se componente ainda estiver montado
         if (isMountedRef.current) {
-          setTurmas(Array.isArray(turmasRes.data) ? turmasRes.data : []);
+          const turmasOrdenadas = Array.isArray(turmasRes.data)
+            ? turmasRes.data.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))
+            : [];
+          setTurmas(turmasOrdenadas);
           setUnidades(Array.isArray(unidadesRes.data) ? unidadesRes.data : []);
           setCursos(Array.isArray(cursosRes.data) ? cursosRes.data : []);
           setUsuarios(todosUsuarios); // ✅ Usar lista combinada
@@ -3362,7 +3365,7 @@
           `Unidade: ${unidadeNome}\n` +
           `Curso: ${cursoNome}\n` +
           `Instrutor: ${instrutorNome}\n` +
-          `Período: ${turma.data_inicio} a ${turma.data_fim}\n` +
+          `Período: ${new Date(turma.data_inicio + "T00:00:00").toLocaleDateString("pt-BR")} a ${new Date(turma.data_fim + "T00:00:00").toLocaleDateString("pt-BR")}\n` +
           `Horário: ${turma.horario_inicio} às ${turma.horario_fim}\n` +
           `Vagas: ${turma.vagas_ocupadas || 0}/${turma.vagas_total}\n` +
           `Ciclo: ${turma.ciclo}\n` +
@@ -3974,8 +3977,8 @@
                       </TableCell>
                       <TableCell>{turma.ciclo}</TableCell>
                       <TableCell>
-                        {new Date(turma.data_inicio).toLocaleDateString()} -{" "}
-                        {new Date(turma.data_fim).toLocaleDateString()}
+                        {new Date(turma.data_inicio + "T00:00:00").toLocaleDateString("pt-BR")} -{" "}
+                        {new Date(turma.data_fim + "T00:00:00").toLocaleDateString("pt-BR")}
                       </TableCell>
                       <TableCell>
                         {turma.horario_inicio} - {turma.horario_fim}
@@ -5212,6 +5215,7 @@
     nome_social: "",
     turma_id: "",
     });
+    const [filtroBusca, setFiltroBusca] = useState("");
   
   const fetchDropoutReasons = async () => {
       try {
@@ -5233,7 +5237,11 @@
         console.log("🔍 Buscando alunos...");
         const response = await axios.get(`${API}/students`);
         console.log("✅ Alunos recebidos:", response.data.length, "alunos");
-        setAlunos(Array.isArray(response.data) ? response.data : []);
+        
+        const alunosOrdenados = Array.isArray(response.data) 
+          ? response.data.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))
+          : [];
+        setAlunos(alunosOrdenados);
       } catch (error) {
         console.error("❌ Erro ao buscar alunos:", error);
         console.error("Status:", error.response?.status);
@@ -5930,7 +5938,24 @@
           </div>
         )}
   
-        <CardContent>
+<CardContent>
+          {/* 🔍 FILTRO DE BUSCA */}
+          <div className="mb-4 flex gap-2 items-center">
+            <div className="relative flex-1 max-w-sm">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Input
+                placeholder="Buscar por nome ou CPF..."
+                value={filtroBusca}
+                onChange={(e) => setFiltroBusca(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+            {filtroBusca && (
+              <Button variant="outline" size="sm" onClick={() => setFiltroBusca("")}>
+                <X className="h-4 w-4 mr-1" /> Limpar
+              </Button>
+            )}
+          </div>
           <div className="table-container">
             <Table>
               <TableHeader>
@@ -5944,8 +5969,17 @@
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {Array.isArray(alunos) &&
-                  alunos.map((aluno) => (
+              {Array.isArray(alunos) &&
+                  alunos
+                    .filter((aluno) => {
+                      if (!filtroBusca) return true;
+                      const busca = filtroBusca.toLowerCase().replace(/\D/g, "") || filtroBusca.toLowerCase();
+                      const nomeBate = aluno.nome.toLowerCase().includes(filtroBusca.toLowerCase());
+                      const nomeSocialBate = aluno.nome_social?.toLowerCase().includes(filtroBusca.toLowerCase());
+                      const cpfBate = aluno.cpf?.replace(/\D/g, "").includes(filtroBusca.replace(/\D/g, ""));
+                      return nomeBate || nomeSocialBate || cpfBate;
+                    })
+                    .map((aluno) => (
                     <TableRow key={aluno.id}>
                       <TableCell className="font-medium">{aluno.nome}</TableCell>
                       <TableCell>{aluno.cpf}</TableCell>
