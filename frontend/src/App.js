@@ -6317,147 +6317,125 @@
                 Resumo detalhado do processamento do arquivo CSV
               </DialogDescription>
             </DialogHeader>
-  
+
             {bulkSummaryData && (
               <div className="space-y-6 overflow-y-auto max-h-[60vh]">
-                {/* 📈 MÉTRICAS GERAIS */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                   <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
                     <div className="text-2xl font-bold text-green-700">
-                      {bulkSummaryData.resumo?.sucessos || 0}
+                      {bulkSummaryData.summary?.inserted || 0}
                     </div>
-                    <div className="text-sm text-green-600">✅ Sucessos</div>
-                  </div>
-                  <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
-                    <div className="text-2xl font-bold text-red-700">
-                      {bulkSummaryData.resumo?.erros || 0}
-                    </div>
-                    <div className="text-sm text-red-600">❌ Erros</div>
+                    <div className="text-sm text-green-600">✅ Inseridos</div>
                   </div>
                   <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-center">
                     <div className="text-2xl font-bold text-yellow-700">
-                      {bulkSummaryData.resumo?.duplicados || 0}
+                      {bulkSummaryData.summary?.skipped || 0}
                     </div>
-                    <div className="text-sm text-yellow-600">🔄 Duplicados</div>
+                    <div className="text-sm text-yellow-600">⏭️ Pulados (duplicado)</div>
                   </div>
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
-                    <div className="text-2xl font-bold text-blue-700">
-                      {bulkSummaryData.resumo?.total || 0}
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
+                    <div className="text-2xl font-bold text-red-700">
+                      {bulkSummaryData.summary?.errors_count || 0}
                     </div>
-                    <div className="text-sm text-blue-600">📋 Total</div>
+                    <div className="text-sm text-red-600">❌ Erros</div>
+                  </div>
+                  <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 text-center">
+                    <div className="text-2xl font-bold text-orange-700">
+                      {bulkSummaryData.summary?.warnings_count || 0}
+                    </div>
+                    <div className="text-sm text-orange-600">⚠️ Avisos CPF</div>
                   </div>
                 </div>
-  
-                {/* 📝 DETALHES */}
-                {bulkSummaryData.detalhes &&
-                  bulkSummaryData.detalhes.length > 0 && (
-                    <div>
-                      <h3 className="font-semibold mb-3">
-                        📝 Detalhes do Processamento
-                      </h3>
-                      <div className="max-h-40 overflow-y-auto border rounded-lg">
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead>Linha</TableHead>
-                              <TableHead>Nome</TableHead>
-                              <TableHead>Status</TableHead>
-                              <TableHead>Detalhes</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {bulkSummaryData.detalhes.map((item, index) => (
-                              <TableRow key={index}>
-                                <TableCell>{item.linha}</TableCell>
-                                <TableCell>{item.nome || "N/A"}</TableCell>
-                                <TableCell>
-                                  <Badge
-                                    variant={
-                                      item.status === "sucesso"
-                                        ? "default"
-                                        : "destructive"
-                                    }
-                                  >
-                                    {item.status === "sucesso"
-                                      ? "✅ Sucesso"
-                                      : "❌ Erro"}
-                                  </Badge>
-                                </TableCell>
-                                <TableCell className="max-w-xs truncate">
-                                  {item.mensagem}
-                                </TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      </div>
-                    </div>
-                  )}
-  
-                {/* ⚠️ ERROS */}
-                {bulkSummaryData.erros && bulkSummaryData.erros.length > 0 && (
+
+                {(bulkSummaryData.summary?.errors || []).length > 0 && (
                   <div>
-                    <div className="flex justify-between items-center mb-3">
+                    <div className="flex justify-between items-center mb-2">
                       <h3 className="font-semibold text-red-700">
-                        ⚠️ Erros Encontrados
+                        ❌ Erros ({bulkSummaryData.summary.errors.length})
                       </h3>
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => downloadErrorReport(bulkSummaryData.erros)}
+                        onClick={() => downloadErrorReport(bulkSummaryData.summary.errors)}
                         className="text-red-600 border-red-600 hover:bg-red-50"
                       >
                         <Download className="h-4 w-4 mr-2" />
-                        Baixar Relatório de Erros
+                        Baixar CSV de Erros
                       </Button>
                     </div>
-                    <div className="max-h-32 overflow-y-auto bg-red-50 border border-red-200 rounded-lg p-3">
-                      {bulkSummaryData.erros.slice(0, 5).map((erro, index) => (
-                        <div key={index} className="text-sm text-red-700 mb-1">
-                          <strong>Linha {erro.linha}:</strong> {erro.erro}
-                        </div>
-                      ))}
-                      {bulkSummaryData.erros.length > 5 && (
-                        <div className="text-sm text-red-600 italic">
-                          ... e mais {bulkSummaryData.erros.length - 5} erros.
-                          Baixe o relatório completo.
-                        </div>
-                      )}
+                    <div className="max-h-48 overflow-y-auto rounded-lg border border-red-200">
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="bg-red-50">
+                            <TableHead className="w-16">Linha</TableHead>
+                            <TableHead>Nome do Aluno</TableHead>
+                            <TableHead>Motivo</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {bulkSummaryData.summary.errors.map((erro, index) => (
+                            <TableRow key={index}>
+                              <TableCell className="font-mono text-sm text-gray-500">
+                                {erro.line}
+                              </TableCell>
+                              <TableCell className="font-medium text-red-800">
+                                {erro.data?.nome || erro.data?.cpf_original || "—"}
+                              </TableCell>
+                              <TableCell className="text-red-700 text-sm">
+                                {erro.data?.motivo === "formato_invalido"
+                                  ? `CPF inválido: "${erro.data.cpf_original}" — ${erro.data.digitos_encontrados} dígito(s), esperado 11`
+                                  : erro.error?.substring(0, 150) || "Erro desconhecido"}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
                     </div>
                   </div>
                 )}
-  
-                {/* ✅ SUCESSOS */}
-                {bulkSummaryData.sucessos &&
-                  bulkSummaryData.sucessos.length > 0 && (
-                    <div>
-                      <h3 className="font-semibold text-green-700 mb-3">
-                        ✅ Alunos Importados com Sucesso
-                      </h3>
-                      <div className="max-h-32 overflow-y-auto bg-green-50 border border-green-200 rounded-lg p-3">
-                        {bulkSummaryData.sucessos
-                          .slice(0, 10)
-                          .map((sucesso, index) => (
-                            <div
-                              key={index}
-                              className="text-sm text-green-700 mb-1"
-                            >
-                              <strong>{sucesso.nome}</strong> - CPF: {sucesso.cpf}
-                              {sucesso.turma && ` → Turma: ${sucesso.turma}`}
-                            </div>
+
+                {(bulkSummaryData.summary?.warnings || []).length > 0 && (
+                  <div>
+                    <h3 className="font-semibold text-orange-700 mb-2">
+                      ⚠️ Avisos de CPF ({bulkSummaryData.summary.warnings.length}) — alunos foram importados
+                    </h3>
+                    <div className="max-h-32 overflow-y-auto rounded-lg border border-orange-200">
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="bg-orange-50">
+                            <TableHead className="w-16">Linha</TableHead>
+                            <TableHead>Nome</TableHead>
+                            <TableHead>CPF</TableHead>
+                            <TableHead>Aviso</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {bulkSummaryData.summary.warnings.map((aviso, index) => (
+                            <TableRow key={index}>
+                              <TableCell className="font-mono text-sm text-gray-500">{aviso.line}</TableCell>
+                              <TableCell className="font-medium">{aviso.data?.nome || "—"}</TableCell>
+                              <TableCell className="font-mono text-sm">{aviso.data?.cpf_original || "—"}</TableCell>
+                              <TableCell className="text-orange-700 text-sm">
+                                Dígitos verificadores não conferem — verifique o documento
+                              </TableCell>
+                            </TableRow>
                           ))}
-                        {bulkSummaryData.sucessos.length > 10 && (
-                          <div className="text-sm text-green-600 italic">
-                            ... e mais {bulkSummaryData.sucessos.length - 10}{" "}
-                            alunos importados.
-                          </div>
-                        )}
-                      </div>
+                        </TableBody>
+                      </Table>
                     </div>
-                  )}
+                  </div>
+                )}
+
+                <div className="p-3 bg-gray-50 border rounded-lg text-sm text-gray-600">
+                  <strong>Total processado:</strong> {bulkSummaryData.summary?.total_processed || 0} linhas
+                  &nbsp;•&nbsp;
+                  <strong>Taxa de sucesso:</strong> {bulkSummaryData.summary?.success_rate || "0%"}
+                </div>
+
               </div>
             )}
-  
+
             <div className="flex justify-end space-x-2 mt-4">
               <Button variant="outline" onClick={() => setShowBulkSummary(false)}>
                 Fechar
@@ -6465,7 +6443,7 @@
               <Button
                 onClick={() => {
                   setShowBulkSummary(false);
-                  fetchAlunos(); // Recarregar lista de alunos
+                  fetchAlunos();
                 }}
                 className="bg-blue-600 hover:bg-blue-700"
               >
@@ -6474,7 +6452,7 @@
               </Button>
             </div>
           </DialogContent>
-        </Dialog>
+        </Dialog>  
   
         {/* Dialog de visualização detalhada do aluno */}
         <Dialog
