@@ -1288,16 +1288,22 @@ async def get_alunos(
     elif current_user.tipo == "instrutor":
         # 👨‍🏫 INSTRUTOR: VÊ APENAS ALUNOS DAS TURMAS QUE ELE LECIONA
         # NOVA LÓGICA: Similar ao pedagogo, mas filtrado por curso específico do instrutor
-        
-        if not getattr(current_user, 'curso_id', None) or not getattr(current_user, 'unidade_id', None):
-            print("❌ Instrutor sem curso ou unidade definida")
-            return []
-            
         # Buscar todas as turmas do curso específico do instrutor na sua unidade
         turmas_instrutor = await db.turmas.find({
             "curso_id": getattr(current_user, 'curso_id', None),
             "unidade_id": getattr(current_user, 'unidade_id', None),
-            "instrutor_id": current_user.id,  # Apenas turmas que ele leciona
+            "$or": [
+                {"instrutor_id": current_user.id},
+                {"instrutor_ids": current_user.id}
+            ],
+            "ativo": True
+        }).to_list(1000)
+            "curso_id": getattr(current_user, 'curso_id', None),
+            "unidade_id": getattr(current_user, 'unidade_id', None),
+            "$or": [
+                {"instrutor_id": current_user.id},
+                {"instrutor_ids": current_user.id}
+            ],
             "ativo": True
         }).to_list(1000)
         
@@ -2462,7 +2468,8 @@ async def get_turmas(current_user: UserResponse = Depends(get_current_user)):
                     result_turmas.append(turma_obj)
                 except Exception as e2:
                     print(f"❌ Admin - Erro crítico turma {turma.get('id', 'SEM_ID')}: {e2}")
-                    continue
+                    continuefor turma_obj in result_turmas:
+            turma_obj.vagas_ocupadas = len(turma_obj.alunos_ids)
         return result_turmas
     else:
         # Instrutor, pedagogo ou monitor vê turmas do seu curso e unidade
@@ -2513,6 +2520,8 @@ async def get_turmas(current_user: UserResponse = Depends(get_current_user)):
                 print(f"❌ Erro crítico ao processar turma {turma.get('id', 'SEM_ID')}: {e2}")
                 continue
     
+    for turma_obj in result_turmas:
+        turma_obj.vagas_ocupadas = len(turma_obj.alunos_ids)
     return result_turmas
 
 @api_router.put("/classes/{turma_id}/students/{aluno_id}")
