@@ -642,9 +642,7 @@
     // Inicializar todos os alunos como presentes
     const [records, setRecords] = useState(
       turma?.alunos?.map((aluno) => ({
-        aluno_id: aluno.id,
-        nome: aluno.nome_social || aluno.nome,
-        presente: true,
+        aluno_id: aluno.id,nome: aluno.nome_social || aluno.nome || `CPF: ${aluno.cpf}` || "Aluno sem nome",presente: true,
       })) || [],
     );
   
@@ -654,7 +652,7 @@
         setRecords(
           turma.alunos.map((aluno) => ({
             aluno_id: aluno.id,
-            nome: aluno.nome_social || aluno.nome,
+            nome: aluno.nome_social || aluno.nome || `CPF: ${aluno.cpf}` || "Aluno sem nome",
             presente: true,
           })),
         );
@@ -2436,7 +2434,7 @@
                           </div>
   
                           <div className="flex-1">
-                            <p className="font-medium">{aluno.nome_social || aluno.nome}</p>
+                            <p className="font-medium">{aluno.nome_social || aluno.nome || `CPF: ${aluno.cpf}` || "Aluno sem nome"}</p>
                             <p className="text-sm text-gray-500">
                               CPF: {aluno.cpf}
                             </p>
@@ -3984,8 +3982,8 @@
                         {turma.horario_inicio} - {turma.horario_fim}
                       </TableCell>
                       <TableCell>
-                        {turma.vagas_ocupadas}/{turma.vagas_total}
-                      </TableCell>
+                      {(turma.alunos_ids?.length ?? turma.vagas_ocupadas ?? 0)}/{turma.vagas_total}
+                    </TableCell>
                       <TableCell>
                         <Badge variant={turma.ativo ? "default" : "secondary"}>
                           {turma.ativo ? "Ativa" : "Inativa"}
@@ -5735,19 +5733,15 @@
             <div className="flex gap-2">
               {user?.tipo === "admin" && <MotivosManagerButton />}
               {/* 🚀 BULK UPLOAD BUTTON */}
-              {user?.tipo !== "monitor" && (
-                <Dialog
-                  open={isBulkUploadOpen}
-                  onOpenChange={setIsBulkUploadOpen}
+                {user?.tipo !== "monitor" && (
+                <Button
+                  onClick={() => setIsBulkUploadOpen(true)}
+                  className="bg-green-600 hover:bg-green-700"
                 >
-                  <DialogTrigger asChild>
-                    <Button className="bg-green-600 hover:bg-green-700">
-                      <Upload className="h-4 w-4 mr-2" />
-                      Importar em Massa
-                    </Button>
-                  </DialogTrigger>
-                </Dialog>
-              )}
+                  <Upload className="h-4 w-4 mr-2" />
+                  Importar em Massa
+                </Button>
+              )}      
   
               {/* 🎯 PRODUÇÃO: Botões de teste removidos para usuários finais */}
               <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -5974,9 +5968,9 @@
                     .filter((aluno) => {
                       if (!filtroBusca) return true;
                       const busca = filtroBusca.toLowerCase().replace(/\D/g, "") || filtroBusca.toLowerCase();
-                      const nomeBate = aluno.nome.toLowerCase().includes(filtroBusca.toLowerCase());
-                      const nomeSocialBate = aluno.nome_social?.toLowerCase().includes(filtroBusca.toLowerCase());
-                      const cpfBate = aluno.cpf?.replace(/\D/g, "").includes(filtroBusca.replace(/\D/g, ""));
+                      const nomeBate = (aluno.nome || "").toLowerCase().includes(filtroBusca.toLowerCase());
+                      const nomeSocialBate = (aluno.nome_social || "").toLowerCase().includes(filtroBusca.toLowerCase());
+                      const cpfBate = (aluno.cpf || "").replace(/\D/g, "").includes(filtroBusca.replace(/\D/g, ""));
                       return nomeBate || nomeSocialBate || cpfBate;
                     })
                     .map((aluno) => (
