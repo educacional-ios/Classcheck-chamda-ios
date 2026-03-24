@@ -195,9 +195,6 @@ def gerar_senha_temporaria(nome_completo: str) -> str:
     
     return f"IOS2026{iniciais}"
 
-# Inclui o router no app (já criados acima)
-app.include_router(api_router)
-
 # Endpoint de diagnóstico
 @app.get("/debug/status")
 async def debug_status():
@@ -1297,15 +1294,7 @@ async def get_alunos(
                 {"instrutor_ids": current_user.id}
             ],
             "ativo": True
-        }).to_list(1000)
-            "curso_id": getattr(current_user, 'curso_id', None),
-            "unidade_id": getattr(current_user, 'unidade_id', None),
-            "$or": [
-                {"instrutor_id": current_user.id},
-                {"instrutor_ids": current_user.id}
-            ],
-            "ativo": True
-        }).to_list(1000)
+}).to_list(1000)
         
         print(f"🔍 Instrutor {current_user.email} leciona {len(turmas_instrutor)} turmas")
         
@@ -2468,7 +2457,8 @@ async def get_turmas(current_user: UserResponse = Depends(get_current_user)):
                     result_turmas.append(turma_obj)
                 except Exception as e2:
                     print(f"❌ Admin - Erro crítico turma {turma.get('id', 'SEM_ID')}: {e2}")
-                    continuefor turma_obj in result_turmas:
+                continue
+        for turma_obj in result_turmas:
             turma_obj.vagas_ocupadas = len(turma_obj.alunos_ids)
         return result_turmas
     else:
@@ -5110,12 +5100,15 @@ async def get_pending_attendances_for_instructor(current_user: UserResponse = De
             print(f"🔍 [DEBUG] Admin - buscando todas as turmas ativas")
             
         elif current_user.tipo == "instrutor":
-            # 🧑‍🏫 INSTRUTOR: Apenas suas turmas
+            # 🧑‍🏫 INSTRUTOR: Apenas suas turmas (cobre formato antigo e novo)
             cursor = db.turmas.find({
-                "instrutor_id": current_user.id,
+                "$or": [
+                    {"instrutor_ids": current_user.id},
+                    {"instrutor_id": current_user.id}
+                ],
                 "ativo": True
             })
-            print(f"🔍 [DEBUG] Instrutor - buscando turmas do instrutor_id: {current_user.id}")
+            print(f"🔍 [DEBUG] Instrutor - buscando turmas do instrutor: {current_user.id}")
             
         elif current_user.tipo == "pedagogo":
             # 👩‍🎓 PEDAGOGO: Turmas da sua unidade/curso
@@ -5397,50 +5390,48 @@ async def shutdown_db_client():
 
 # Railway compatibility - run server if executed directly
 @api_router.get("/teacher/stats")
-async def get_teacher_stats(current_user: dict = Depends(get_current_user)):
+async def get_teacher_stats(current_user: UserResponse = Depends(get_current_user)):
     """✅ CORRIGIDO: Estatísticas por tipo de usuário com cálculos corretos"""
     try:
         # 🎯 FILTRAR DADOS BASEADO NO TIPO DE USUÁRIO
-        if current_user["tipo"] == "admin":
+        if current_user.tipo == "admin":
             # Admin: todas as turmas e chamadas
             query_turmas = {"ativo": True}
             query_chamadas = {}
-            query_alunos = {}
-        elif current_user["tipo"] == "instrutor":
+        elif current_user.tipo == "instrutor":
             # ✅ Instrutor: apenas suas turmas REGULARES
-            query_turmas = {"instrutor_id": current_user["id"], "ativo": True, "tipo_turma": "regular"}
-        elif current_user["tipo"] == "pedagogo":
+            query_turmas = {"instrutor_id": current_user.id, "ativo": True, "tipo_turma": "regular"}
+        elif current_user.tipo == "pedagogo":
             # ✅ Pedagogo: apenas turmas de EXTENSÃO da unidade/curso
             query_turmas = {"ativo": True, "tipo_turma": "extensao"}
-            if current_user.get("unidade_id"):
-                query_turmas["unidade_id"] = current_user["unidade_id"]
-            if current_user.get("curso_id"):
-                query_turmas["curso_id"] = current_user["curso_id"]
-        elif current_user["tipo"] == "monitor":
+            if getattr(current_user, "unidade_id", None):
+                query_turmas["unidade_id"] = current_user.unidade_id
+            if getattr(current_user, "curso_id", None):
+                query_turmas["curso_id"] = current_user.curso_id
+        elif current_user.tipo == "monitor":
             # Monitor: turmas que monitora
-            query_turmas = {"monitor_id": current_user["id"], "ativo": True}
+            query_turmas = {"monitor_id": current_user.id, "ativo": True}
         else:
             # Tipo desconhecido
             query_turmas = {}
-        
+            
         # 📊 BUSCAR TURMAS DO USUÁRIO
         turmas = await db.turmas.find(query_turmas).to_list(1000)
         turma_ids = [turma["id"] for turma in turmas]
         
-        if not turma_ids and current_user["tipo"] != "admin":
+        if not turma_ids and current_user.tipo != "admin":
             # Usuário sem turmas: retornar dados zerados
             return {
                 "taxa_media_presenca": "0.0%",
                 "total_alunos": 0,
                 "alunos_em_risco": 0,
                 "desistentes": 0,
-                "chamadas_hoje": 0,
-                "total_turmas": 0,
+                "chamadas_hoje": 0,"total_turmas": 0,
                 "ultima_atualizacao": datetime.now().isoformat()
             }
         
         # 📅 FILTRAR CHAMADAS POR TURMAS DO USUÁRIO
-        if current_user["tipo"] == "admin":
+        if current_user.tipo == "admin":
             query_chamadas = {}
         else:
             query_chamadas = {"turma_id": {"$in": turma_ids}}
@@ -5488,8 +5479,8 @@ async def get_teacher_stats(current_user: dict = Depends(get_current_user)):
             alunos_unicos.update(alunos_ids)
         total_alunos_usuario = len(alunos_unicos)
         
-        # 📊 FILTRAR DESISTENTES POR ESCOPO DO USUÁRIO
-        if current_user["tipo"] == "admin":
+# 📊 FILTRAR DESISTENTES POR ESCOPO DO USUÁRIO
+        if current_user.tipo == "admin":
             desistentes = await db.alunos.count_documents({"status": "desistente"})
         else:
             # ✅ CORREÇÃO: Desistentes apenas dos alunos das turmas do usuário (com tipo de turma)
@@ -5500,21 +5491,22 @@ async def get_teacher_stats(current_user: dict = Depends(get_current_user)):
                     "id": {"$in": alunos_ids_list},
                     "status": "desistente"
                 })
-                print(f"🔍 DEBUG Desistentes {current_user['tipo']}: {desistentes} alunos desistentes de {len(alunos_ids_list)} alunos totais")
+                print(f"🔍 DEBUG Desistentes {current_user.tipo}: {desistentes} alunos desistentes de {len(alunos_ids_list)} alunos totais")
             else:
                 desistentes = 0
         
         # 📅 CHAMADAS DE HOJE
         hoje = date.today().isoformat()
-        if current_user["tipo"] == "admin":
+        if current_user.tipo == "admin":
             chamadas_hoje = await db.attendances.count_documents({"data": hoje})
         else:
             chamadas_hoje = await db.attendances.count_documents({
                 "turma_id": {"$in": turma_ids},
                 "data": hoje
+                
             }) if turma_ids else 0
         
-        print(f"📊 STATS {current_user['tipo'].upper()}: {taxa_presenca:.1f}% ({total_presentes}/{total_registros}) - Turmas: {len(turmas)}")
+        print(f"📊 STATS {current_user.tipo.upper()}:        
         
         return {
             "taxa_media_presenca": f"{taxa_presenca:.1f}%",
@@ -5525,7 +5517,7 @@ async def get_teacher_stats(current_user: dict = Depends(get_current_user)):
             "total_turmas": len(turmas),
             "total_presentes": total_presentes,
             "total_faltas": total_registros - total_presentes,
-            "usuario_tipo": current_user["tipo"],
+            "usuario_tipo": current_user.tipo,
             "ultima_atualizacao": datetime.now().isoformat()
         }
         
