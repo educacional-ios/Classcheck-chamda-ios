@@ -1868,8 +1868,9 @@
             <TabsContent value="relatorios">
               <RelatoriosManager />
             </TabsContent>
-          </Tabs>
-        </main>
+            </Tabs>
+            </div>
+            </main>
   
         {/* Footer discreto */}
         <footer className="mt-auto py-4 border-t bg-white">
