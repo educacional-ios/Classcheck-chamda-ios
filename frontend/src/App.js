@@ -1652,9 +1652,11 @@
       </div>
       </CardContent>
       </Card>
+      </div>
           {/* Additional Stats Row */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
             <Card>
+              
               <CardContent className="p-4">
                 <div className="flex items-center space-x-2">
                   <CheckCircle className="h-5 w-5 text-green-500" />
@@ -1869,7 +1871,6 @@
               <RelatoriosManager />
             </TabsContent>
             </Tabs>
-            </div>
             </main>
   
         {/* Footer discreto */}
