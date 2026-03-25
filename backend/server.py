@@ -2824,34 +2824,40 @@ async def get_chamadas_turma(turma_id: str, current_user: UserResponse = Depends
     return [Chamada(**parse_from_mongo(chamada)) for chamada in chamadas]
 
 @api_router.get("/classes/{turma_id}/students")
-async def get_turma_students(turma_id: str, current_user: UserResponse = Depends(get_current_user)):
+async def get_turma_students(
+    turma_id: str,
+    current_user: UserResponse = Depends(get_current_user)
+):
     turma = await db.turmas.find_one({"id": turma_id})
+    
     if not turma:
         raise HTTPException(status_code=404, detail="Turma não encontrada")
-    
+
+    # 🔐 PERMISSÃO
+    if current_user.tipo == "instrutor":
+        if turma.get("instrutor_id") != current_user.id:
+            raise HTTPException(
+                status_code=403,
+                detail="Você não tem acesso a esta turma"
+            )
+
     aluno_ids = turma.get("alunos_ids", [])
+    
     if not aluno_ids:
         return []
-    
-    # 🚫 FILTRAR ALUNOS: Excluir desistentes da lista de chamada
+
     alunos = await db.alunos.find({
-        "id": {"$in": aluno_ids}, 
+        "id": {"$in": aluno_ids},
         "ativo": True,
-        "status": {"$ne": "desistente"}  # Excluir alunos desistentes
+        "status": {"$ne": "desistente"}
     }).to_list(1000)
-    
-# Clean up MongoDB-specific fields and parse dates
+
     result = []
     for aluno in alunos:
-        if '_id' in aluno:
-            del aluno['_id']
-        cleaned_aluno = parse_from_mongo(aluno)
-        if 'nome_social' not in cleaned_aluno:
-            cleaned_aluno['nome_social'] = None
-        result.append(cleaned_aluno)
-    
-    return result
+        aluno["_id"] = str(aluno["_id"])
+        result.append(aluno)
 
+    return result
 # 🏥 SISTEMA DE ATESTADOS MÉDICOS COMPLETO
 @api_router.post("/upload/atestado")
 async def upload_atestado(
@@ -5400,7 +5406,11 @@ async def get_teacher_stats(current_user: UserResponse = Depends(get_current_use
             query_chamadas = {}
         elif current_user.tipo == "instrutor":
             # ✅ Instrutor: apenas suas turmas REGULARES
-            query_turmas = {"instrutor_id": current_user.id, "ativo": True, "tipo_turma": "regular"}
+            query_turmas = {
+                "instrutor_ids": {"$in": [current_user.id]},
+                "ativo": True,
+                "tipo_turma": "regular"
+            }
         elif current_user.tipo == "pedagogo":
             # ✅ Pedagogo: apenas turmas de EXTENSÃO da unidade/curso
             query_turmas = {"ativo": True, "tipo_turma": "extensao"}
