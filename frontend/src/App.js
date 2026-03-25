@@ -1629,26 +1629,29 @@
             </Card>
   
             <Card className="stats-card">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">
-                      {user?.tipo === "admin"
-                        ? "Alunos"
-                        : user?.tipo === "instrutor"
-                          ? "Meus Alunos"
-                          : "Alunos do Curso"}
-                    </p>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {stats.total_alunos || 0}
-                    </p>
-                  </div>
-                  <UserCheck className="h-8 w-8 text-orange-600" />
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-  
+            <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-gray-600">
+              {user?.tipo === "admin"
+              ? "Alunos"
+               : user?.tipo === "instrutor"
+              ? "Alunos no Curso"
+              : "Alunos do Curso"}
+            </p>
+          <p className="text-2xl font-bold text-gray-900">
+          {stats.total_alunos || 0}
+            </p>
+          { user?.tipo === "instrutor" && (
+            <p className="text-xs text-gray-400 mt-1">
+            Total no seu curso
+            </p>
+        )}
+      </div>
+          <UserCheck className="h-8 w-8 text-orange-600" />
+      </div>
+      </CardContent>
+      </Card>
           {/* Additional Stats Row */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
             <Card>
@@ -5214,53 +5217,69 @@
     turma_id: "",
     });
     const [filtroBusca, setFiltroBusca] = useState("");
+    const [filtroCurso, setFiltroCurso] = useState("todos");
+    const [filtroTurma, setFiltroTurma] = useState("todos");
+    const [cursos, setCursos] = useState([]);
+    const fetchDropoutReasons = async () => {
+    try {
+      const response = await axios.get(`${API}/dropout-reasons`);
+      setDropoutReasons(Array.isArray(response.data) ? response.data :[]);
+    } catch (error) {
+      setDropoutReasons([]);
+    }
+  };
+    
+      useEffect(() => {
+      if (user) {
+        fetchAlunos();
+        fetchTurmas();
+        fetchCursos();
+        fetchDropoutReasons();
+    }
+    },     [user]);
+
+  // 👇 FUNÇÃO PARA BUSCAR CURSOS (CORRIGIDA) 👇
+  const fetchCursos = async () => {
+    try {
+      const response = await axios.get(`${API}/courses`);
+      setCursos(Array.isArray(response.data) ? response.data :[]);
+    } catch (error) {
+      console.error("❌ Erro ao buscar cursos:", error);
+      setCursos([]);
+    }
+  };
+
+  // 👇 FUNÇÃO PARA BUSCAR ALUNOS COM LIMITE AUMENTADO PARA 5000 👇
+// ✅ CORRETO — com catch completo
+const fetchAlunos = async () => {
+  try {
+    console.log("🔍 Buscando alunos...");
+    const params = new URLSearchParams({ limit: 5000 });
+    if (user?.tipo === "instrutor" && user?.curso_id) {
+      params.append("curso_id", user.curso_id);
+    }
+
+    const response = await axios.get(`${API}/students?${params}`);
+    console.log("✅ Alunos recebidos:", response.data.length, "alunos");
+
+    const alunosOrdenados = Array.isArray(response.data)
+      ? response.data.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))
+      : [];
+    setAlunos(alunosOrdenados);
+  } catch (error) {
+    console.error("❌ Erro ao buscar alunos:", error);
+    setAlunos([]);
+    toast({
+      title: "Erro ao carregar alunos",
+      description: "Não foi possível carregar a lista de alunos",
+      variant: "destructive",
+    });
+  } finally {
+    setLoading(false);
+  }
+};
   
-  const fetchDropoutReasons = async () => {
-      try {
-        const response = await axios.get(`${API}/dropout-reasons`);
-        setDropoutReasons(Array.isArray(response.data) ? response.data : []);
-      } catch (error) {
-        setDropoutReasons([]);
-      }
-    };
-  
-    useEffect(() => {
-      fetchAlunos();
-      fetchTurmas();
-      fetchDropoutReasons();
-    }, []);
-  
-    const fetchAlunos = async () => {
-      try {
-        console.log("🔍 Buscando alunos...");
-        const response = await axios.get(`${API}/students`);
-        console.log("✅ Alunos recebidos:", response.data.length, "alunos");
-        
-        const alunosOrdenados = Array.isArray(response.data) 
-          ? response.data.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))
-          : [];
-        setAlunos(alunosOrdenados);
-      } catch (error) {
-        console.error("❌ Erro ao buscar alunos:", error);
-        console.error("Status:", error.response?.status);
-        console.error("Mensagem:", error.response?.data);
-        setAlunos([]);
-  
-        // Mostrar erro para o usuário
-        toast({
-          title: "Erro ao carregar alunos",
-          description: `Erro ${error.response?.status || "desconhecido"}: ${
-            error.response?.data?.detail ||
-            "Não foi possível carregar a lista de alunos"
-          }`,
-          variant: "destructive",
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
-  
-    const fetchTurmas = async () => {
+      const fetchTurmas = async () => {       
       try {
         console.log("🔍 Buscando turmas...");
         const response = await axios.get(`${API}/classes`);
@@ -5274,6 +5293,8 @@
           description: "Não foi possível carregar a lista de turmas",
           variant: "destructive",
         });
+      } finally {
+      setLoading(false);
       }
     };
   
@@ -5933,23 +5954,57 @@
         )}
   
 <CardContent>
-          {/* 🔍 FILTRO DE BUSCA */}
-          <div className="mb-4 flex gap-2 items-center">
-            <div className="relative flex-1 max-w-sm">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <Input
-                placeholder="Buscar por nome ou CPF..."
-                value={filtroBusca}
-                onChange={(e) => setFiltroBusca(e.target.value)}
-                className="pl-9"
-              />
+  {/* 🔍 FILTROS AVANÇADOS DE ALUNOS */}
+          <div className="mb-4 p-4 bg-gray-50 border rounded-lg">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+              <div className="space-y-1">
+                <Label className="text-sm">Buscar por nome ou CPF</Label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Input
+                    placeholder="Nome ou CPF..."
+                    value={filtroBusca}
+                    onChange={(e) => setFiltroBusca(e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-sm">Curso</Label>
+                <Select value={filtroCurso} onValueChange={setFiltroCurso}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todos</SelectItem>
+                    {Array.isArray(cursos) && cursos.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-sm">Turma</Label>
+                <Select value={filtroTurma} onValueChange={setFiltroTurma}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todas</SelectItem>
+                    {Array.isArray(turmas) && turmas.map((t) => (
+                      <SelectItem key={t.id} value={t.id}>{t.nome}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-end">
+                <Button 
+                  variant="outline" 
+                  className="w-full" 
+                  onClick={() => { setFiltroBusca(""); setFiltroCurso("todos"); setFiltroTurma("todos"); }}
+                >
+                  <X className="h-4 w-4 mr-1" /> Limpar Filtros
+                </Button>
+              </div>
             </div>
-            {filtroBusca && (
-              <Button variant="outline" size="sm" onClick={() => setFiltroBusca("")}>
-                <X className="h-4 w-4 mr-1" /> Limpar
-              </Button>
-            )}
           </div>
+
           <div className="table-container">
             <Table>
               <TableHeader>
@@ -5965,16 +6020,29 @@
               <TableBody>
               {Array.isArray(alunos) &&
                   alunos
-                    .filter((aluno) => {
-                      if (!filtroBusca) return true;
-                      const busca = filtroBusca.toLowerCase().replace(/\D/g, "") || filtroBusca.toLowerCase();
-                      const nomeBate = (aluno.nome || "").toLowerCase().includes(filtroBusca.toLowerCase());
-                      const nomeSocialBate = (aluno.nome_social || "").toLowerCase().includes(filtroBusca.toLowerCase());
-                      const cpfBate = (aluno.cpf || "").replace(/\D/g, "").includes(filtroBusca.replace(/\D/g, ""));
-                      return nomeBate || nomeSocialBate || cpfBate;
-                    })
+           .filter((aluno) => {
+           let buscaOk = true;
+           if (filtroBusca.trim()) {
+           const termoBusca = filtroBusca.toLowerCase().trim();
+           const termoCPF = filtroBusca.replace(/\D/g, "");
+
+           const nomeBate = (aluno.nome || "").toLowerCase().includes(termoBusca);
+           const nomeSocialBate = (aluno.nome_social || "").toLowerCase().includes(termoBusca);
+           const cpfBate = termoCPF.length > 0
+            ? (aluno.cpf || "").replace(/\D/g, "").includes(termoCPF)
+            : false;
+
+    buscaOk = nomeBate || nomeSocialBate || cpfBate;
+  }
+
+  const cursoOk = filtroCurso === "todos" || aluno.curso_id === filtroCurso;
+  const turmaOk = filtroTurma === "todos" || aluno.turma_id === filtroTurma;
+
+  return buscaOk && cursoOk && turmaOk;
+})
                     .map((aluno) => (
-                    <TableRow key={aluno.id}>
+                      
+                      <TableRow key={aluno.id}>
                       <TableCell className="font-medium">{aluno.nome}</TableCell>
                       <TableCell>{aluno.cpf}</TableCell>
                       <TableCell className="text-center font-medium">
@@ -6315,19 +6383,31 @@
             {bulkSummaryData && (
               <div className="space-y-6 overflow-y-auto max-h-[60vh]">
 
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
-                    <div className="text-2xl font-bold text-green-700">
-                      {bulkSummaryData.summary?.inserted || 0}
-                    </div>
-                    <div className="text-sm text-green-600">✅ Inseridos</div>
-                  </div>
-                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-center">
-                    <div className="text-2xl font-bold text-yellow-700">
-                      {bulkSummaryData.summary?.skipped || 0}
-                    </div>
-                    <div className="text-sm text-yellow-600">⏭️ Pulados (duplicado)</div>
-                  </div>
+<div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+  
+  <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
+    <div className="text-2xl font-bold text-green-700">
+      {bulkSummaryData.summary?.inserted || 0}
+    </div>
+    <div className="text-sm text-green-600">✅ Inseridos</div>
+  </div>
+
+  {/* 👇 COMEÇO DA NOVA CAIXINHA DE ATUALIZADOS 👇 */}
+  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
+    <div className="text-2xl font-bold text-blue-700">
+      {bulkSummaryData.summary?.updated || 0}
+    </div>
+    <div className="text-sm text-blue-600">🔄 Atualizados</div>
+  </div>
+  {/* 👆 FIM DA NOVA CAIXINHA 👆 */}
+
+  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-center">
+    <div className="text-2xl font-bold text-yellow-700">
+      {bulkSummaryData.summary?.skipped || 0}
+    </div>
+    <div className="text-sm text-yellow-600">⏭️ Pulados (duplicado)</div>
+  </div>
+      
                   <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
                     <div className="text-2xl font-bold text-red-700">
                       {bulkSummaryData.summary?.errors_count || 0}
@@ -6756,18 +6836,19 @@
   
   // Unidades Manager Component COMPLETO
   const UnidadesManager = () => {
-    const [unidades, setUnidades] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [isDialogOpen, setIsDialogOpen] = useState(false);
-    const [editingUnidade, setEditingUnidade] = useState(null);
-    const [formData, setFormData] = useState({
-      nome: "",
-      endereco: "",
-      telefone: "",
-      responsavel: "",
-      email: "",
-    });
-    const { toast } = useToast();
+  const [unidades, setUnidades] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);  // ← FALTAVA
+  const [editingUnidade, setEditingUnidade] = useState(null);
+  const [formData, setFormData] = useState({
+    nome: "",
+    endereco: "",
+    telefone: "",
+    responsavel: "",
+    email: "",
+  });
+  const { toast } = useToast();  // ← FALTAVA
+  
   
     useEffect(() => {
       fetchUnidades();
