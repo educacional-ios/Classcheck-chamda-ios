@@ -6038,7 +6038,9 @@ const fetchAlunos = async () => {
   }
 
   const cursoOk = filtroCurso === "todos" || aluno.curso_id === filtroCurso;
-  const turmaOk = filtroTurma === "todos" || aluno.turma_id === filtroTurma;
+  const turmaOk = filtroTurma === "todos" || 
+  (Array.isArray(aluno.turmas_ids) && aluno.turmas_ids.includes(filtroTurma)) ||
+  aluno.turma_id === filtroTurma;
 
   return buscaOk && cursoOk && turmaOk;
 })
