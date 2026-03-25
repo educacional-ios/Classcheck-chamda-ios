@@ -5516,7 +5516,7 @@ async def get_teacher_stats(current_user: UserResponse = Depends(get_current_use
                 
             }) if turma_ids else 0
         
-        print(f"📊 STATS {current_user.tipo.upper()}:        
+print(f"📊 ESTATÍSTICAS {current_user.tipo.upper()}:")        
         
         return {
             "taxa_media_presenca": f"{taxa_presenca:.1f}%",
