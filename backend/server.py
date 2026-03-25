@@ -5390,137 +5390,130 @@ async def ping_server():
         "cors_test": "OK"
     }
 
-@app.on_event("shutdown")
-async def shutdown_db_client():
-    client.close()
-
-# Railway compatibility - run server if executed directly
 @api_router.get("/teacher/stats")
 async def get_teacher_stats(current_user: UserResponse = Depends(get_current_user)):
-    """✅ CORRIGIDO: Estatísticas por tipo de usuário com cálculos corretos"""
+    """Estatísticas por tipo de usuário com cálculos corretos"""
     try:
         # 🎯 FILTRAR DADOS BASEADO NO TIPO DE USUÁRIO
         if current_user.tipo == "admin":
-            # Admin: todas as turmas e chamadas
             query_turmas = {"ativo": True}
-            query_chamadas = {}
+
         elif current_user.tipo == "instrutor":
-            # ✅ Instrutor: apenas suas turmas REGULARES
             query_turmas = {
                 "instrutor_ids": {"$in": [current_user.id]},
                 "ativo": True,
-                "tipo_turma": "regular"
+                "tipo_turma": "regular",
             }
+
         elif current_user.tipo == "pedagogo":
-            # ✅ Pedagogo: apenas turmas de EXTENSÃO da unidade/curso
-            query_turmas = {"ativo": True, "tipo_turma": "extensao"}
+            query_turmas = {
+                "ativo": True,
+                "tipo_turma": "extensao",
+            }
             if getattr(current_user, "unidade_id", None):
                 query_turmas["unidade_id"] = current_user.unidade_id
             if getattr(current_user, "curso_id", None):
                 query_turmas["curso_id"] = current_user.curso_id
+
         elif current_user.tipo == "monitor":
-            # Monitor: turmas que monitora
-            query_turmas = {"monitor_id": current_user.id, "ativo": True}
+            query_turmas = {
+                "monitor_id": current_user.id,
+                "ativo": True,
+            }
         else:
-            # Tipo desconhecido
             query_turmas = {}
-            
-        # 📊 BUSCAR TURMAS DO USUÁRIO
+
+        # 📊 BUSCAR TURMAS
         turmas = await db.turmas.find(query_turmas).to_list(1000)
         turma_ids = [turma["id"] for turma in turmas]
-        
+
         if not turma_ids and current_user.tipo != "admin":
-            # Usuário sem turmas: retornar dados zerados
             return {
                 "taxa_media_presenca": "0.0%",
                 "total_alunos": 0,
                 "alunos_em_risco": 0,
                 "desistentes": 0,
-                "chamadas_hoje": 0,"total_turmas": 0,
-                "ultima_atualizacao": datetime.now().isoformat()
+                "chamadas_hoje": 0,
+                "total_turmas": 0,
+                "total_presentes": 0,
+                "total_faltas": 0,
+                "usuario_tipo": current_user.tipo,
+                "ultima_atualizacao": datetime.now().isoformat(),
             }
-        
-        # 📅 FILTRAR CHAMADAS POR TURMAS DO USUÁRIO
+
+        # 📅 CHAMADAS
         if current_user.tipo == "admin":
             query_chamadas = {}
         else:
             query_chamadas = {"turma_id": {"$in": turma_ids}}
-            
+
         todas_chamadas = await db.attendances.find(query_chamadas).to_list(1000)
-        
-        # 🧮 CÁLCULOS DE PRESENÇA
+
+        # 🧮 CÁLCULOS
         total_presentes = 0
         total_registros = 0
         alunos_stats = {}
-        
+
         for chamada in todas_chamadas:
-            records = chamada.get('records', [])
+            records = chamada.get("records", [])
             for record in records:
-                aluno_id = record.get('aluno_id')
-                presente = record.get('presente', False)
-                
+                aluno_id = record.get("aluno_id")
+                presente = record.get("presente", False)
+
                 total_registros += 1
                 if presente:
                     total_presentes += 1
-                
-                # Stats por aluno
+
                 if aluno_id not in alunos_stats:
-                    alunos_stats[aluno_id] = {'presentes': 0, 'faltas': 0}
-                
+                    alunos_stats[aluno_id] = {"presentes": 0, "faltas": 0}
+
                 if presente:
-                    alunos_stats[aluno_id]['presentes'] += 1
+                    alunos_stats[aluno_id]["presentes"] += 1
                 else:
-                    alunos_stats[aluno_id]['faltas'] += 1
-        
-        # ✅ TAXA DE PRESENÇA REAL
+                    alunos_stats[aluno_id]["faltas"] += 1
+
         taxa_presenca = (total_presentes / total_registros * 100) if total_registros > 0 else 0
-        
-        # 🚨 ALUNOS EM RISCO (mais de 25% faltas)
+
         alunos_risco = 0
-        for stats in alunos_stats.values():
-            total_aulas = stats['presentes'] + stats['faltas']
-            if total_aulas > 0 and (stats['faltas'] / total_aulas) > 0.25:
+        for aluno in alunos_stats.values():
+            if aluno["faltas"] > aluno["presentes"]:
                 alunos_risco += 1
-        
-        # 👥 CONTAR ALUNOS ÚNICOS DAS TURMAS DO USUÁRIO
-        alunos_unicos = set()
-        for turma in turmas:
-            alunos_ids = turma.get("alunos_ids", [])
-            alunos_unicos.update(alunos_ids)
-        total_alunos_usuario = len(alunos_unicos)
-        
-# 📊 FILTRAR DESISTENTES POR ESCOPO DO USUÁRIO
+
+        total_alunos = len(alunos_stats)
+
         if current_user.tipo == "admin":
             desistentes = await db.alunos.count_documents({"status": "desistente"})
         else:
-            # ✅ CORREÇÃO: Desistentes apenas dos alunos das turmas do usuário (com tipo de turma)
-            alunos_ids_list = list(alunos_unicos)
-            if alunos_ids_list:
-                # Buscar alunos desistentes que estão nas turmas do usuário
-                desistentes = await db.alunos.count_documents({
-                    "id": {"$in": alunos_ids_list},
-                    "status": "desistente"
-                })
-                print(f"🔍 DEBUG Desistentes {current_user.tipo}: {desistentes} alunos desistentes de {len(alunos_ids_list)} alunos totais")
-            else:
-                desistentes = 0
-        
-        # 📅 CHAMADAS DE HOJE
+            alunos_ids_unicos = set()
+            for turma in turmas:
+                alunos_ids_unicos.update(turma.get("alunos_ids", []))
+
+            desistentes = (
+                await db.alunos.count_documents(
+                    {
+                        "id": {"$in": list(alunos_ids_unicos)},
+                        "status": "desistente",
+                    }
+                )
+                if alunos_ids_unicos
+                else 0
+            )
+
         hoje = date.today().isoformat()
         if current_user.tipo == "admin":
             chamadas_hoje = await db.attendances.count_documents({"data": hoje})
         else:
-            chamadas_hoje = await db.attendances.count_documents({
-                "turma_id": {"$in": turma_ids},
-                "data": hoje
-                
-            }) if turma_ids else 0
-        
-print(f"📊 ESTATÍSTICAS {current_user.tipo.upper()}:")        
-        
+            chamadas_hoje = (
+                await db.attendances.count_documents(
+                    {"turma_id": {"$in": turma_ids}, "data": hoje}
+                )
+                if turma_ids
+                else 0
+            )
+
         return {
             "taxa_media_presenca": f"{taxa_presenca:.1f}%",
-            "total_alunos": total_alunos_usuario,
+            "total_alunos": total_alunos,
             "alunos_em_risco": alunos_risco,
             "desistentes": desistentes,
             "chamadas_hoje": chamadas_hoje,
@@ -5528,9 +5521,9 @@ print(f"📊 ESTATÍSTICAS {current_user.tipo.upper()}:")
             "total_presentes": total_presentes,
             "total_faltas": total_registros - total_presentes,
             "usuario_tipo": current_user.tipo,
-            "ultima_atualizacao": datetime.now().isoformat()
+            "ultima_atualizacao": datetime.now().isoformat(),
         }
-        
+
     except Exception as e:
         print(f"❌ Erro teacher/stats: {e}")
         return {
@@ -5539,9 +5532,9 @@ print(f"📊 ESTATÍSTICAS {current_user.tipo.upper()}:")
             "alunos_em_risco": 0,
             "desistentes": 0,
             "chamadas_hoje": 0,
-            "error": str(e)
+            "error": str(e),
         }
-
+        
 # 🔍 ENDPOINT DE DIAGNÓSTICO - Verifica qual MongoDB está conectado
 @api_router.get("/diagnostic/database-info")
 async def database_diagnostic():
