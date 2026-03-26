@@ -1287,14 +1287,13 @@ async def get_alunos(
         # NOVA LÓGICA: Similar ao pedagogo, mas filtrado por curso específico do instrutor
         # Buscar todas as turmas do curso específico do instrutor na sua unidade
         turmas_instrutor = await db.turmas.find({
-            "curso_id": getattr(current_user, 'curso_id', None),
             "unidade_id": getattr(current_user, 'unidade_id', None),
             "$or": [
                 {"instrutor_id": current_user.id},
                 {"instrutor_ids": current_user.id}
             ],
             "ativo": True
-}).to_list(1000)
+        }).to_list(1000)
         
         print(f"🔍 Instrutor {current_user.email} leciona {len(turmas_instrutor)} turmas")
         
@@ -3012,20 +3011,31 @@ async def listar_atestados_aluno(
         
         if current_user.tipo == "instrutor":
             turmas_instrutor = await db.turmas.find({
-                "instrutor_id": current_user.id,
-                "alunos_ids": aluno_id
+                "unidade_id": getattr(current_user, 'unidade_id', None),
+                "$or": [
+                    {"instrutor_id": current_user.id},
+                    {"instrutor_ids": current_user.id}
+                ],
+                "alunos_ids": aluno_id,
+                "ativo": True
             }).to_list(10)
+    
             tem_permissao = len(turmas_instrutor) > 0
             
         elif current_user.tipo == "pedagogo":
             turmas_unidade = await db.turmas.find({
                 "unidade_id": getattr(current_user, 'unidade_id', None),
-                "alunos_ids": aluno_id
+                "alunos_ids": aluno_id,
+                "ativo": True
             }).to_list(10)
+    
             tem_permissao = len(turmas_unidade) > 0
         
         if not tem_permissao:
-            raise HTTPException(status_code=403, detail="Sem permissão para visualizar atestados deste aluno")
+            raise HTTPException(
+                status_code=403,
+                detail="Sem permissão para visualizar atestados deste aluno"
+            )
     
     # 📋 BUSCAR ATESTADOS
     atestados = await db.atestados.find({"aluno_id": aluno_id}).sort("created_at", -1).to_list(100)
