@@ -5324,10 +5324,11 @@ const fetchAlunos = async () => {
   
        try {
   if (editingAluno) {
+    const nomeSocialLimpo = formData.nome_social?.trim();
     const updatePayload = {
       nome: formData.nome,
       cpf: formData.cpf,
-      nome_social: formData.nome_social || null,
+      nome_social: (nomeSocialLimpo && nomeSocialLimpo !== "-") ? nomeSocialLimpo : null,
     };
     await axios.put(`${API}/students/${editingAluno.id}`, updatePayload);
     toast({
@@ -5476,8 +5477,7 @@ const fetchAlunos = async () => {
       setFormData({
        nome: aluno.nome,
        cpf: aluno.cpf,
-       nome_social: aluno.nome_social || "",
-       turma_id: "",
+       nome_social: (aluno.nome_social && aluno.nome_social !== "-") ? aluno.nome_social : "",       turma_id: "",
       });
       setIsDialogOpen(true);
     };
