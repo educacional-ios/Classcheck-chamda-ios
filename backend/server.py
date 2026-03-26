@@ -1396,7 +1396,18 @@ async def get_alunos(
 async def update_aluno(aluno_id: str, aluno_update: AlunoUpdate, current_user: UserResponse = Depends(get_current_user)):
     check_admin_permission(current_user)
     
-    update_data = {k: v for k, v in aluno_update.dict().items() if v is not None}
+    # Usar __fields_set__ para capturar campos enviados explicitamente (inclusive null)
+    update_data = {
+        k: v for k, v in aluno_update.dict().items()
+        if k in aluno_update.__fields_set__
+    }
+    
+    # Sanitizar nome_social: se vier null, "", ou "-", gravar None no banco
+    if "nome_social" in update_data:
+        ns = update_data["nome_social"]
+        if ns is None or (isinstance(ns, str) and ns.strip() in ("", "-")):
+            update_data["nome_social"] = None
+    
     if not update_data:
         raise HTTPException(status_code=400, detail="Nenhum dado para atualizar")
     
