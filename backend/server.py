@@ -1958,55 +1958,79 @@ async def bulk_upload_students(
                         "data": {"data_original": data_nasc_raw, "erro": str(e)}
                     })
                     continue
-            
+
+
             # 🔍 VERIFICAR SE ALUNO JÁ EXISTE (por CPF)
             existing = await db.alunos.find_one({"cpf": cpf_norm})
-            
+
+            # =========================================================
+            # 📌 CASO 1: ALUNO JÁ EXISTE
+            # =========================================================
             if existing:
+
                 if update_existing:
-                    # 🔄 ATUALIZAR ALUNO EXISTENTE
+                    # 🧹 Sanitizar nome_social
+                    nome_social_limpo = nome_social.strip() if nome_social else None
+                    if nome_social_limpo in ("-", ""):
+                        nome_social_limpo = None
+
+                    # 🧱 Montar documento de atualização
                     update_doc = {
                         "nome": nome.strip(),
                         "cpf": cpf_norm,
+                        "nome_social": nome_social_limpo,
                         "updated_by": current_user.id,
                         "updated_at": datetime.now(timezone.utc).isoformat()
                     }
-                    
-                    # Adicionar campos opcionais se fornecidos
+
                     if data_nasc:
                         update_doc["data_nascimento"] = data_nasc.isoformat()
+
                     if email:
                         update_doc["email"] = email
+
                     if telefone:
                         update_doc["telefone"] = telefone
+
                     if rg:
                         update_doc["rg"] = rg
+
                     if genero:
                         update_doc["genero"] = genero
+
                     if endereco:
                         update_doc["endereco"] = endereco
+
                     if curso_id:
                         update_doc["curso_id"] = curso_id
-                    
+
                     await db.alunos.update_one(
-                        {"id": existing["id"]}, 
+                        {"id": existing["id"]},
                         {"$set": update_doc}
                     )
+
                     updated += 1
                     aluno_id_to_use = existing["id"]
-                    
+
                 else:
-                    # 📊 PULAR ALUNO EXISTENTE
                     skipped += 1
                     aluno_id_to_use = existing["id"]
-                    
+
+            # =========================================================
+            # 📌 CASO 2: ALUNO NÃO EXISTE
+            # =========================================================
             else:
-                # ➕ CRIAR NOVO ALUNO
                 new_id = str(uuid.uuid4())
+
+                nome_social_limpo = nome_social.strip() if nome_social else None
+                if nome_social_limpo in ("-", ""):
+                    nome_social_limpo = None
+
                 doc = {
                     "id": new_id,
                     "nome": nome.strip(),
                     "cpf": cpf_norm,
+                    "nome_social": nome_social_limpo,
                     "status": "ativo",
                     "ativo": True,
                     "created_by": current_user.id,
@@ -2014,34 +2038,36 @@ async def bulk_upload_students(
                     "created_by_type": current_user.tipo,
                     "created_at": datetime.now(timezone.utc).isoformat()
                 }
-                
-                # Adicionar campos opcionais
+
                 if data_nasc:
                     doc["data_nascimento"] = data_nasc.isoformat()
+
                 if email:
                     doc["email"] = email
+
                 if telefone:
                     doc["telefone"] = telefone
+
                 if rg:
                     doc["rg"] = rg
+
                 if genero:
                     doc["genero"] = genero
+
                 if endereco:
                     doc["endereco"] = endereco
+
                 if curso_id:
                     doc["curso_id"] = curso_id
-                if nome_social:
-                    doc["nome_social"] = nome_social
-                
-                # Adicionar unidade do usuário se disponível
+
                 if hasattr(current_user, 'unidade_id') and getattr(current_user, 'unidade_id', None):
-                    doc["unidade_id"] = getattr(current_user, 'unidade_id', None)
-                
+                    doc["unidade_id"] = getattr(current_user, 'unidade_id')
+
                 await db.alunos.insert_one(doc)
+
                 inserted += 1
                 aluno_id_to_use = new_id
 
-                # Se teve aviso de CPF, registrar nos avisos
                 if aviso_cpf:
                     errors.append({
                         "line": line,
@@ -2054,7 +2080,7 @@ async def bulk_upload_students(
                             "acao": "aluno_importado_com_aviso"
                         }
                     })
-                
+                    
             # 🎯 ASSOCIAR À TURMA SE FORNECIDA
             if turma_id and aluno_id_to_use:
                 try:
