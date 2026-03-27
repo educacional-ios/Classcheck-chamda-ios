@@ -2877,16 +2877,16 @@ async def get_turma_students(
     if not turma:
         raise HTTPException(status_code=404, detail="Turma não encontrada")
 
-    # 🔐 PERMISSÃO
-if current_user.tipo == "instrutor":
-    instrutor_ids = turma.get("instrutor_ids", [])
-    instrutor_id_legacy = turma.get("instrutor_id")
+    # 🔐 PERMISSÃO (Agora indentado corretamente dentro da função)
+    if current_user.tipo == "instrutor":
+        instrutor_ids = turma.get("instrutor_ids", [])
+        instrutor_id_legacy = turma.get("instrutor_id")
 
-    if current_user.id not in instrutor_ids and current_user.id != instrutor_id_legacy:
-        raise HTTPException(
-            status_code=403,
-            detail="Você não tem acesso a esta turma"
-        )
+        if current_user.id not in instrutor_ids and current_user.id != instrutor_id_legacy:
+            raise HTTPException(
+                status_code=403,
+                detail="Você não tem acesso a esta turma"
+            )
 
     aluno_ids = turma.get("alunos_ids", [])
     
