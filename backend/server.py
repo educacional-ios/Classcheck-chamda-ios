@@ -235,6 +235,8 @@ class User(BaseModel):
     token_confirmacao: Optional[str] = None
     unidade_id: Optional[str] = None  # Para instrutores/pedagogos/monitores
     curso_id: Optional[str] = None  # Para instrutores/pedagogos/monitores - curso específico
+    unidade_ids: List[str] = []    # ← NOVO: múltiplas unidades - 27/03/2026
+    curso_ids: List[str] = []      # ← NOVO: múltiplos cursos - 27/03/2026
     telefone: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     last_login: Optional[datetime] = None
@@ -255,6 +257,8 @@ class UserUpdate(BaseModel):
     ativo: Optional[bool] = None
     unidade_id: Optional[str] = None
     curso_id: Optional[str] = None
+    unidade_ids: Optional[List[str]] = None   # ← NOVO -- 27/03/2026
+    curso_ids: Optional[List[str]] = None     # ← NOVO -- 27/03/2026
 
 class UserLogin(BaseModel):
     email: EmailStr
@@ -430,6 +434,8 @@ class TurmaCreate(BaseModel):
 
 class TurmaUpdate(BaseModel):
     nome: Optional[str] = None
+    unidade_id: Optional[str] = None   # ← Alteração adicionada no dia 27/03/2026 - Devido ao curso nao salvar na alteração no front-end
+    curso_id: Optional[str] = None     # ← Alteração adicionada no dia 27/03/2026 - Devido ao curso nao salvar na alteração no front-end
     data_inicio: Optional[date] = None
     data_fim: Optional[date] = None
     horario_inicio: Optional[str] = None
@@ -2691,9 +2697,12 @@ async def update_turma(turma_id: str, turma_update: TurmaUpdate, current_user: U
     # 📝 PREPARAR DADOS PARA ATUALIZAÇÃO
     update_data = {}
     
-    # Campos que podem ser atualizados diretamente
-    for field in ["nome", "data_inicio", "data_fim", "horario_inicio", "horario_fim", "dias_semana", "tipo_turma", "vagas_total", "instrutor_ids", "monitor_id", "pedagogo_id"]:
-        value = getattr(turma_update, field)
+    # Campos que podem ser atualizados diretamente - Atualizado dia 27/03/2026 - Gravação no front nao estava sendo salva
+    for field in ["nome", "unidade_id", "curso_id", "data_inicio", "data_fim", 
+              "horario_inicio", "horario_fim", "dias_semana", "tipo_turma", 
+              "vagas_total", "instrutor_ids", "monitor_id", "pedagogo_id"]:
+                  value = getattr(turma_update, field)
+        
         if value is not None:
             if field in ["data_inicio", "data_fim"] and isinstance(value, date):
                 update_data[field] = value.isoformat()
@@ -4467,10 +4476,19 @@ async def get_pending_calls(current_user: UserResponse = Depends(get_current_use
     if current_user.tipo == "instrutor":
         query_turmas["instrutor_ids"] = current_user.id
     elif current_user.tipo in ["pedagogo", "monitor"]:
-        if getattr(current_user, 'curso_id', None):
-            query_turmas["curso_id"] = getattr(current_user, 'curso_id', None)
-        if getattr(current_user, 'unidade_id', None):
-            query_turmas["unidade_id"] = getattr(current_user, 'unidade_id', None)
+    curso_ids = getattr(current_user, 'curso_ids', []) or []
+    unidade_ids = getattr(current_user, 'unidade_ids', []) or []
+    
+    # Fallback para campos antigos (compatibilidade)
+    if not curso_ids and getattr(current_user, 'curso_id', None):
+        curso_ids = [current_user.curso_id]
+    if not unidade_ids and getattr(current_user, 'unidade_id', None):
+        unidade_ids = [current_user.unidade_id]
+    
+    if curso_ids:
+        query["curso_id"] = {"$in": curso_ids}
+    if unidade_ids:
+        query["unidade_id"] = {"$in": unidade_ids}
     # Admin vê todas as turmas
     
     turmas = await db.turmas.find(query_turmas).to_list(1000)
