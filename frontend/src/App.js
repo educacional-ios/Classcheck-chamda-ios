@@ -2665,6 +2665,7 @@
     const [loading, setLoading] = useState(true);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [editingUser, setEditingUser] = useState(null);
+    // ALTERAÇÃO 27/03/2026 — Adicionados arrays para suportar múltiplas unidades/cursos por professor
     const [formData, setFormData] = useState({
       nome: "",
       email: "",
@@ -2672,8 +2673,9 @@
       telefone: "",
       unidade_id: "",
       curso_id: "",
+      unidade_ids: [],  // NOVO: array de unidades
+      curso_ids: [],    // NOVO: array de cursos
     });
-    const { toast } = useToast();
   
     useEffect(() => {
       fetchData();
@@ -2734,15 +2736,19 @@
     const handleSubmit = async (e) => {
       e.preventDefault();
       try {
-        if (editingUser) {
-          await axios.put(`${API}/users/${editingUser.id}`, {
-          nome: formData.nome,
-          email: formData.email,
-          tipo: formData.tipo,
-          telefone: formData.telefone,
-          unidade_id: formData.unidade_id,
-          curso_id: formData.curso_id,
-        });       
+  if (editingUser) {
+    await axios.put(`${API}/users/${editingUser.id}`, {
+      nome: formData.nome,
+      email: formData.email,
+      tipo: formData.tipo,
+      telefone: formData.telefone,
+      unidade_id: formData.unidade_id,
+      curso_id: formData.curso_id,
+      // ALTERAÇÃO 27/03/2026 — Enviar arrays novos ao backend.
+      // O backend aceita ambos os formatos (singular + array)
+      unidade_ids: formData.unidade_ids,
+      curso_ids: formData.curso_ids,
+    });      
           toast({
             title: "Usuário atualizado com sucesso!",
             description: "As informações do usuário foram atualizadas.",
@@ -2820,29 +2826,40 @@
       }
     };
   
-    const resetForm = () => {
-      setFormData({
-        nome: "",
-        email: "",
-        tipo: "",
-        telefone: "",
-        unidade_id: "",
-        curso_id: "",
-      });
-    };
-  
-    const handleEdit = (usuario) => {
-      setEditingUser(usuario);
-      setFormData({
-        nome: usuario.nome,
-        email: usuario.email,
-        tipo: usuario.tipo,
-        telefone: usuario.telefone || "",
-        unidade_id: usuario.unidade_id || "",
-        curso_id: usuario.curso_id || "",
-      });
-      setIsDialogOpen(true);
-    };
+  const resetForm = () => {
+    setFormData({
+      nome: "",
+      email: "",
+      tipo: "",
+      telefone: "",
+      unidade_id: "",
+      curso_id: "",
+      // ALTERAÇÃO 27/03/2026 — Resetar arrays junto com campos antigos
+      unidade_ids: [],
+      curso_ids: [],
+    });
+  };
+    
+  const handleEdit = (usuario) => {
+    setEditingUser(usuario);
+    setFormData({
+      nome: usuario.nome,
+      email: usuario.email,
+      tipo: usuario.tipo,
+      telefone: usuario.telefone || "",
+      unidade_id: usuario.unidade_id || "",
+      curso_id: usuario.curso_id || "",
+      // ALTERAÇÃO 27/03/2026 — Carregar arrays ao abrir edição.
+      // Fallback para campo singular caso o registro ainda não tenha os arrays (dados legados)
+      unidade_ids: usuario.unidade_ids?.length > 0
+        ? usuario.unidade_ids
+        : (usuario.unidade_id ? [usuario.unidade_id] : []),
+      curso_ids: usuario.curso_ids?.length > 0
+        ? usuario.curso_ids
+        : (usuario.curso_id ? [usuario.curso_id] : []),
+    });
+    setIsDialogOpen(true);
+  };
   
     const handleDelete = async (userId) => {
       if (window.confirm("Tem certeza que deseja desativar este usuário?")) {
@@ -3017,11 +3034,43 @@
                         placeholder="(11) 99999-9999"
                       />
                     </div>
-  
                     {formData.tipo !== "admin" && (
-                      <>
-                        <div className="space-y-2">
-                          <Label>Unidade</Label>
+                    <>
+                      {/* ALTERAÇÃO 27/03/2026 — Unidade: modo criação usa Select simples,
+                          modo edição usa checkboxes para permitir múltiplas unidades.
+                          Motivo: professor pode trabalhar em mais de uma unidade */}
+                      <div className="space-y-2">
+                        <Label>
+                          {editingUser ? "Unidades (pode selecionar várias)" : "Unidade"}
+                        </Label>
+                  
+                        {editingUser ? (
+                          <div className="border rounded-lg p-2 space-y-1 max-h-40 overflow-y-auto">
+                            {Array.isArray(unidades) && unidades.map((unidade) => (
+                              <div key={unidade.id} className="flex items-center space-x-2">
+                                <Checkbox
+                                  id={`unidade-${unidade.id}`}
+                                  checked={(formData.unidade_ids || []).includes(unidade.id)}
+                                  onCheckedChange={(checked) => {
+                                    const atual = formData.unidade_ids || [];
+                                    const novos = checked
+                                      ? [...atual, unidade.id]
+                                      : atual.filter(id => id !== unidade.id);
+                                    setFormData({
+                                      ...formData,
+                                      unidade_ids: novos,
+                                      // Manter campo antigo com o primeiro selecionado (compatibilidade)
+                                      unidade_id: novos[0] || "",
+                                    });
+                                  }}
+                                />
+                                <label htmlFor={`unidade-${unidade.id}`} className="text-sm cursor-pointer">
+                                  {unidade.nome}
+                                </label>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
                           <Select
                             value={formData.unidade_id}
                             onValueChange={(value) =>
@@ -3040,13 +3089,45 @@
                                 ))}
                             </SelectContent>
                           </Select>
-                        </div>
-  
-                        {["instrutor", "pedagogo", "monitor"].includes(
-                          formData.tipo,
-                        ) && (
-                          <div className="space-y-2">
-                            <Label>Curso *</Label>
+                        )}
+                      </div>
+                  
+                      {["instrutor", "pedagogo", "monitor"].includes(formData.tipo) && (
+                        <div className="space-y-2">
+                          {/* ALTERAÇÃO 27/03/2026 — Curso: mesmo padrão da unidade.
+                              Modo criação = Select simples. Modo edição = checkboxes.
+                              Motivo: professor pode ministrar mais de um curso */}
+                          <Label>
+                            {editingUser ? "Cursos (pode selecionar vários)" : "Curso *"}
+                          </Label>
+                  
+                          {editingUser ? (
+                            <div className="border rounded-lg p-2 space-y-1 max-h-40 overflow-y-auto">
+                              {Array.isArray(cursos) && cursos.map((curso) => (
+                                <div key={curso.id} className="flex items-center space-x-2">
+                                  <Checkbox
+                                    id={`curso-${curso.id}`}
+                                    checked={(formData.curso_ids || []).includes(curso.id)}
+                                    onCheckedChange={(checked) => {
+                                      const atual = formData.curso_ids || [];
+                                      const novos = checked
+                                        ? [...atual, curso.id]
+                                        : atual.filter(id => id !== curso.id);
+                                      setFormData({
+                                        ...formData,
+                                        curso_ids: novos,
+                                        // Manter campo antigo com o primeiro selecionado (compatibilidade)
+                                        curso_id: novos[0] || "",
+                                      });
+                                    }}
+                                  />
+                                  <label htmlFor={`curso-${curso.id}`} className="text-sm cursor-pointer">
+                                    {curso.nome}
+                                  </label>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
                             <Select
                               value={formData.curso_id}
                               onValueChange={(value) =>
@@ -3065,11 +3146,11 @@
                                   ))}
                               </SelectContent>
                             </Select>
-                          </div>
-                        )}
-                      </>
-                    )}
-  
+                          )}
+                        </div>
+                      )}
+                    </>
+                  )}  
                     <Button
                       type="submit"
                       className="w-full bg-blue-600 hover:bg-blue-700"
