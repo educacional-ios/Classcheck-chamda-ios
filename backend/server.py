@@ -2701,8 +2701,7 @@ async def update_turma(turma_id: str, turma_update: TurmaUpdate, current_user: U
     for field in ["nome", "unidade_id", "curso_id", "data_inicio", "data_fim", 
               "horario_inicio", "horario_fim", "dias_semana", "tipo_turma", 
               "vagas_total", "instrutor_ids", "monitor_id", "pedagogo_id"]:
-                  value = getattr(turma_update, field)
-        
+        value = getattr(turma_update, field)
         if value is not None:
             if field in ["data_inicio", "data_fim"] and isinstance(value, date):
                 update_data[field] = value.isoformat()
