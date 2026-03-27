@@ -2657,26 +2657,31 @@
   };
   
   // Usuarios Manager Component CORRIGIDO
-  const UsuariosManager = () => {
-    const [usuarios, setUsuarios] = useState([]);
-    const [unidades, setUnidades] = useState([]);
-    const [cursos, setCursos] = useState([]);
-    const [pendingUsers, setPendingUsers] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [isDialogOpen, setIsDialogOpen] = useState(false);
-    const [editingUser, setEditingUser] = useState(null);
-    // ALTERAÇÃO 27/03/2026 — Adicionados arrays para suportar múltiplas unidades/cursos por professor
-    const [formData, setFormData] = useState({
-      nome: "",
-      email: "",
-      tipo: "",
-      telefone: "",
-      unidade_id: "",
-      curso_id: "",
-      unidade_ids: [],  // NOVO: array de unidades
-      curso_ids: [],    // NOVO: array de cursos
-    });
-  
+const UsuariosManager = () => {
+  const [usuarios, setUsuarios] = useState([]);
+  const [unidades, setUnidades] = useState([]);
+  const [cursos, setCursos] = useState([]);
+  const [pendingUsers, setPendingUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState(null);
+
+  // ALTERAÇÃO 27/03/2026 — Adicionados arrays para suportar múltiplas unidades/cursos por professor
+  const [formData, setFormData] = useState({
+    nome: "",
+    email: "",
+    tipo: "",
+    telefone: "",
+    unidade_id: "",
+    curso_id: "",
+    unidade_ids: [],  // NOVO: array de unidades
+    curso_ids: [],    // NOVO: array de cursos
+  });
+
+  // CORREÇÃO: useToast declarado no topo para ser usado em todo o componente
+  const { toast } = useToast();
+
+  // Daqui para baixo você continua com suas funções (fetchData, handleSubmit, etc...)
     useEffect(() => {
       fetchData();
     }, []);
@@ -2749,11 +2754,11 @@
       unidade_ids: formData.unidade_ids,
       curso_ids: formData.curso_ids,
     });      
-          toast({
-            title: "Usuário atualizado com sucesso!",
-            description: "As informações do usuário foram atualizadas.",
-          });
-        } else {
+    toast({
+      title: "Usuário atualizado com sucesso!",
+      description: "As informações do usuário foram atualizadas.",
+      });
+     }else{
           // When creating user, a temporary password will be generated
           await axios.post(`${API}/users`, formData);
           toast({
@@ -3035,122 +3040,106 @@
                       />
                     </div>
                     {formData.tipo !== "admin" && (
-                    <>
-                      {/* ALTERAÇÃO 27/03/2026 — Unidade: modo criação usa Select simples,
-                          modo edição usa checkboxes para permitir múltiplas unidades.
-                          Motivo: professor pode trabalhar em mais de uma unidade */}
-                      <div className="space-y-2">
-                        <Label>
-                          {editingUser ? "Unidades (pode selecionar várias)" : "Unidade"}
-                        </Label>
-                  
-                        {editingUser ? (
-                          <div className="border rounded-lg p-2 space-y-1 max-h-40 overflow-y-auto">
-                            {Array.isArray(unidades) && unidades.map((unidade) => (
-                              <div key={unidade.id} className="flex items-center space-x-2">
-                                <Checkbox
-                                  id={`unidade-${unidade.id}`}
-                                  checked={(formData.unidade_ids || []).includes(unidade.id)}
-                                  onCheckedChange={(checked) => {
-                                    const atual = formData.unidade_ids || [];
-                                    const novos = checked
-                                      ? [...atual, unidade.id]
-                                      : atual.filter(id => id !== unidade.id);
-                                    setFormData({
-                                      ...formData,
-                                      unidade_ids: novos,
-                                      // Manter campo antigo com o primeiro selecionado (compatibilidade)
-                                      unidade_id: novos[0] || "",
-                                    });
-                                  }}
-                                />
-                                <label htmlFor={`unidade-${unidade.id}`} className="text-sm cursor-pointer">
-                                  {unidade.nome}
-                                </label>
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <Select
-                            value={formData.unidade_id}
-                            onValueChange={(value) =>
-                              setFormData({ ...formData, unidade_id: value })
-                            }
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Selecione a unidade" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {Array.isArray(unidades) &&
-                                unidades.map((unidade) => (
-                                  <SelectItem key={unidade.id} value={unidade.id}>
-                                    {unidade.nome}
-                                  </SelectItem>
-                                ))}
-                            </SelectContent>
-                          </Select>
-                        )}
-                      </div>
-                  
-                      {["instrutor", "pedagogo", "monitor"].includes(formData.tipo) && (
+                      <>
                         <div className="space-y-2">
-                          {/* ALTERAÇÃO 27/03/2026 — Curso: mesmo padrão da unidade.
-                              Modo criação = Select simples. Modo edição = checkboxes.
-                              Motivo: professor pode ministrar mais de um curso */}
                           <Label>
-                            {editingUser ? "Cursos (pode selecionar vários)" : "Curso *"}
+                            {editingUser ? "Unidades (pode selecionar várias)" : "Unidade"}
                           </Label>
-                  
                           {editingUser ? (
                             <div className="border rounded-lg p-2 space-y-1 max-h-40 overflow-y-auto">
-                              {Array.isArray(cursos) && cursos.map((curso) => (
-                                <div key={curso.id} className="flex items-center space-x-2">
+                              {Array.isArray(unidades) && unidades.map((unidade) => (
+                                <div key={unidade.id} className="flex items-center space-x-2">
                                   <Checkbox
-                                    id={`curso-${curso.id}`}
-                                    checked={(formData.curso_ids || []).includes(curso.id)}
+                                    id={`unidade-${unidade.id}`}
+                                    checked={(formData.unidade_ids || []).map(String).includes(String(unidade.id))}
                                     onCheckedChange={(checked) => {
-                                      const atual = formData.curso_ids || [];
+                                      const atual = formData.unidade_ids || [];
                                       const novos = checked
-                                        ? [...atual, curso.id]
-                                        : atual.filter(id => id !== curso.id);
+                                        ? [...atual, unidade.id]
+                                        : atual.filter(id => String(id) !== String(unidade.id));
                                       setFormData({
                                         ...formData,
-                                        curso_ids: novos,
-                                        // Manter campo antigo com o primeiro selecionado (compatibilidade)
-                                        curso_id: novos[0] || "",
+                                        unidade_ids: novos,
+                                        unidade_id: novos[0] || "",
                                       });
                                     }}
                                   />
-                                  <label htmlFor={`curso-${curso.id}`} className="text-sm cursor-pointer">
-                                    {curso.nome}
+                                  <label htmlFor={`unidade-${unidade.id}`} className="text-sm cursor-pointer">
+                                    {unidade.nome}
                                   </label>
                                 </div>
                               ))}
                             </div>
                           ) : (
                             <Select
-                              value={formData.curso_id}
-                              onValueChange={(value) =>
-                                setFormData({ ...formData, curso_id: value })
-                              }
+                              value={formData.unidade_id}
+                              onValueChange={(value) => setFormData({ ...formData, unidade_id: value })}
                             >
                               <SelectTrigger>
-                                <SelectValue placeholder="Selecione o curso" />
+                                <SelectValue placeholder="Selecione a unidade" />
                               </SelectTrigger>
                               <SelectContent>
-                                {Array.isArray(cursos) &&
-                                  cursos.map((curso) => (
-                                    <SelectItem key={curso.id} value={curso.id}>
-                                      {curso.nome}
-                                    </SelectItem>
-                                  ))}
+                                {Array.isArray(unidades) && unidades.map((unidade) => (
+                                  <SelectItem key={unidade.id} value={unidade.id}>
+                                    {unidade.nome}
+                                  </SelectItem>
+                                ))}
                               </SelectContent>
                             </Select>
                           )}
                         </div>
-                      )}
-                    </>
-                  )}  
+                    
+                        {["instrutor", "pedagogo", "monitor"].includes(formData.tipo) && (
+                          <div className="space-y-2">
+                            <Label>
+                              {editingUser ? "Cursos (pode selecionar várias)" : "Curso *"}
+                            </Label>
+                            {editingUser ? (
+                              <div className="border rounded-lg p-2 space-y-1 max-h-40 overflow-y-auto">
+                                {Array.isArray(cursos) && cursos.map((curso) => (
+                                  <div key={curso.id} className="flex items-center space-x-2">
+                                    <Checkbox
+                                      id={`curso-${curso.id}`}
+                                      checked={(formData.curso_ids || []).map(String).includes(String(curso.id))}
+                                      onCheckedChange={(checked) => {
+                                        const atual = formData.curso_ids || [];
+                                        const novos = checked
+                                          ? [...atual, curso.id]
+                                          : atual.filter(id => String(id) !== String(curso.id));
+                                        setFormData({
+                                          ...formData,
+                                          curso_ids: novos,
+                                          curso_id: novos[0] || "",
+                                        });
+                                      }}
+                                    />
+                                    <label htmlFor={`curso-${curso.id}`} className="text-sm cursor-pointer">
+                                      {curso.nome}
+                                    </label>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <Select
+                                value={formData.curso_id}
+                                onValueChange={(value) => setFormData({ ...formData, curso_id: value })}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Selecione o curso" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {Array.isArray(cursos) && cursos.map((curso) => (
+                                    <SelectItem key={curso.id} value={curso.id}>
+                                      {curso.nome}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            )}
+                          </div>
+                        )}
+                      </>
+                    )} 
                     <Button
                       type="submit"
                       className="w-full bg-blue-600 hover:bg-blue-700"
