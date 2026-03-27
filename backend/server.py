@@ -4475,8 +4475,8 @@ async def get_pending_calls(current_user: UserResponse = Depends(get_current_use
     if current_user.tipo == "instrutor":
         query_turmas["instrutor_ids"] = current_user.id
     elif current_user.tipo in ["pedagogo", "monitor"]:
-    curso_ids = getattr(current_user, 'curso_ids', []) or []
-    unidade_ids = getattr(current_user, 'unidade_ids', []) or []
+        curso_ids = getattr(current_user, 'curso_ids', []) or []
+        unidade_ids = getattr(current_user, 'unidade_ids', []) or []
     
     # Fallback para campos antigos (compatibilidade)
     if not curso_ids and getattr(current_user, 'curso_id', None):
