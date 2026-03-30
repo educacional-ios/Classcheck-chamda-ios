@@ -500,6 +500,33 @@ class AtestadoResponse(BaseModel):
     uploaded_by_nome: str
     created_at: datetime
 
+# ============================================================
+# 🔧 SISTEMA DE SOLICITAÇÕES DE ALTERAÇÃO DE CHAMADA
+# ============================================================
+
+class AttendanceChangeRequest(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    solicitado_por: str
+    solicitado_por_nome: str
+    turma_id: str
+    turma_nome: str
+    aluno_id: str
+    aluno_nome: str
+    aluno_cpf: str
+    data_chamada: str
+    status_atual: bool
+    status_solicitado: bool
+    motivo: str
+    tipo: str = "alteracao_presenca"
+    arquivo_id: Optional[str] = None
+    arquivo_nome: Optional[str] = None
+    status_solicitacao: str = "pendente"
+    admin_resposta: Optional[str] = None
+    respondido_por: Optional[str] = None
+    respondido_por_nome: Optional[str] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: Optional[datetime] = None
+
 # 🚀 NOVOS MODELOS PARA SISTEMA DE ATTENDANCE (CHAMADAS PENDENTES)
 class AttendanceRecord(BaseModel):
     aluno_id: str
@@ -5138,6 +5165,183 @@ async def get_dynamic_teacher_stats(
 
 # TEACHER STATS ENDPOINT - CORRIGIDO PARA PEDAGOGO/INSTRUTOR
 # ENDPOINT REMOVIDO - DUPLICADO
+
+# ============================================================
+# 🔧 ENDPOINTS DE SOLICITAÇÃO DE ALTERAÇÃO DE CHAMADA
+# ============================================================
+
+@api_router.post("/attendance-change-requests")
+async def criar_solicitacao_alteracao(
+    turma_id: str = Form(...),
+    aluno_id: str = Form(...),
+    aluno_cpf: str = Form(...),
+    data_chamada: str = Form(...),
+    status_solicitado: str = Form(...),
+    motivo: str = Form(...),
+    tipo: str = Form("alteracao_presenca"),
+    file: Optional[UploadFile] = File(None),
+    current_user: UserResponse = Depends(get_current_user)
+):
+    """Professor solicita correção de chamada ou justificativa posterior"""
+
+    if current_user.tipo not in ["instrutor", "pedagogo", "monitor"]:
+        raise HTTPException(403, "Apenas professores podem solicitar alterações")
+
+    # Converter status_solicitado de string para bool
+    status_solicitado_bool = status_solicitado.lower() in ["true", "1", "sim", "presente"]
+
+    # Verificar se a chamada existe
+    chamada = await db.attendances.find_one({
+        "turma_id": turma_id,
+        "data": data_chamada
+    })
+    if not chamada:
+        raise HTTPException(404, "Chamada não encontrada para esta data e turma")
+
+    # Buscar status atual do aluno na chamada
+    records = chamada.get("records", [])
+    record_aluno = next((r for r in records if r.get("aluno_id") == aluno_id), None)
+    if not record_aluno and tipo == "alteracao_presenca":
+        raise HTTPException(404, "Aluno não encontrado nesta chamada")
+
+    status_atual = record_aluno.get("presente", False) if record_aluno else False
+
+    # Buscar dados do aluno e turma
+    aluno = await db.alunos.find_one({"id": aluno_id})
+    turma = await db.turmas.find_one({"id": turma_id})
+
+    # Processar arquivo se enviado
+    arquivo_id = None
+    arquivo_nome = None
+    if file and file.filename:
+        contents = await file.read()
+        if len(contents) > 5 * 1024 * 1024:
+            raise HTTPException(400, "Arquivo muito grande. Máximo 5MB")
+        file_obj_id = await fs_bucket.upload_from_stream(
+            file.filename,
+            contents,
+            metadata={
+                "content_type": file.content_type,
+                "uploaded_by": current_user.id
+            }
+        )
+        arquivo_id = str(file_obj_id)
+        arquivo_nome = file.filename
+
+    doc = AttendanceChangeRequest(
+        solicitado_por=current_user.id,
+        solicitado_por_nome=current_user.nome,
+        turma_id=turma_id,
+        turma_nome=turma.get("nome", "") if turma else "",
+        aluno_id=aluno_id,
+        aluno_nome=aluno.get("nome", "") if aluno else "",
+        aluno_cpf=aluno_cpf,
+        data_chamada=data_chamada,
+        status_atual=status_atual,
+        status_solicitado=status_solicitado_bool,
+        motivo=motivo,
+        tipo=tipo,
+        arquivo_id=arquivo_id,
+        arquivo_nome=arquivo_nome,
+    )
+
+    await db.attendance_change_requests.insert_one(doc.dict())
+
+    return {
+        "message": "Solicitação enviada com sucesso. O administrador irá analisar.",
+        "id": doc.id
+    }
+
+
+@api_router.get("/attendance-change-requests")
+async def listar_solicitacoes(
+    status: Optional[str] = None,
+    current_user: UserResponse = Depends(get_current_user)
+):
+    """Admin vê todas as solicitações. Professor vê apenas as suas."""
+    query = {}
+
+    if current_user.tipo == "admin":
+        if status:
+            query["status_solicitacao"] = status
+    else:
+        query["solicitado_por"] = current_user.id
+        if status:
+            query["status_solicitacao"] = status
+
+    docs = await db.attendance_change_requests.find(query).sort(
+        "created_at", -1
+    ).to_list(500)
+
+    for d in docs:
+        d.pop("_id", None)
+
+    return docs
+
+
+@api_router.put("/attendance-change-requests/{request_id}/respond")
+async def responder_solicitacao(
+    request_id: str,
+    decision: str,
+    resposta: str = "",
+    current_user: UserResponse = Depends(get_current_user)
+):
+    """Admin aprova ou nega a solicitação. Se aprovado, corrige a chamada."""
+    check_admin_permission(current_user)
+
+    if decision not in ["aprovado", "negado"]:
+        raise HTTPException(400, "decision deve ser 'aprovado' ou 'negado'")
+
+    req = await db.attendance_change_requests.find_one({"id": request_id})
+    if not req:
+        raise HTTPException(404, "Solicitação não encontrada")
+
+    if req.get("status_solicitacao") != "pendente":
+        raise HTTPException(400, "Esta solicitação já foi respondida anteriormente")
+
+    if decision == "aprovado":
+        # Aplicar a alteração diretamente na chamada
+        chamada = await db.attendances.find_one({
+            "turma_id": req["turma_id"],
+            "data": req["data_chamada"]
+        })
+        if chamada:
+            records = chamada.get("records", [])
+            alterado = False
+            for i, record in enumerate(records):
+                if record.get("aluno_id") == req["aluno_id"]:
+                    records[i]["presente"] = req["status_solicitado"]
+                    records[i]["alterado_por_admin"] = True
+                    records[i]["motivo_alteracao"] = req["motivo"]
+                    alterado = True
+                    break
+
+            if alterado:
+                await db.attendances.update_one(
+                    {"_id": chamada["_id"]},
+                    {"$set": {"records": records}}
+                )
+        else:
+            raise HTTPException(
+                404,
+                "Chamada original não encontrada — não foi possível aplicar a alteração"
+            )
+
+    await db.attendance_change_requests.update_one(
+        {"id": request_id},
+        {"$set": {
+            "status_solicitacao": decision,
+            "admin_resposta": resposta,
+            "respondido_por": current_user.id,
+            "respondido_por_nome": current_user.nome,
+            "updated_at": datetime.now(timezone.utc)
+        }}
+    )
+
+    return {
+        "message": f"Solicitação {decision} com sucesso",
+        "chamada_alterada": decision == "aprovado"
+    }
 
 # 🚀 NOVOS ENDPOINTS PARA SISTEMA DE CHAMADAS PENDENTES
 
