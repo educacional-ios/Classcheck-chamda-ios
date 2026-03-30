@@ -955,7 +955,558 @@
       </>
     );
   };
-  
+
+// ============================================================
+// 📝 MODAL: Professor solicita correção de chamada
+// ============================================================
+const AttendanceChangeRequestModal = ({ open, onClose }) => {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [turmas, setTurmas] = useState([]);
+  const [alunos, setAlunos] = useState([]);
+  const [saving, setSaving] = useState(false);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [form, setForm] = useState({
+    turma_id: "",
+    aluno_id: "",
+    aluno_cpf: "",
+    data_chamada: "",
+    status_solicitado: "",
+    motivo: "",
+    tipo: "alteracao_presenca",
+  });
+
+  useEffect(() => {
+    if (open) fetchTurmas();
+  }, [open]);
+
+  const fetchTurmas = async () => {
+    try {
+      const res = await axios.get(`${API}/classes`);
+      setTurmas(Array.isArray(res.data) ? res.data : []);
+    } catch {
+      setTurmas([]);
+    }
+  };
+
+  const fetchAlunos = async (turmaId) => {
+    try {
+      const res = await axios.get(`${API}/classes/${turmaId}/students`);
+      setAlunos(Array.isArray(res.data) ? res.data : []);
+    } catch {
+      setAlunos([]);
+    }
+  };
+
+  const handleTurmaChange = (turmaId) => {
+    setForm((f) => ({ ...f, turma_id: turmaId, aluno_id: "", aluno_cpf: "" }));
+    fetchAlunos(turmaId);
+  };
+
+  const handleAlunoChange = (alunoId) => {
+    const aluno = alunos.find((a) => a.id === alunoId);
+    setForm((f) => ({ ...f, aluno_id: alunoId, aluno_cpf: aluno?.cpf || "" }));
+  };
+
+  const handleSubmit = async () => {
+    if (
+      !form.turma_id ||
+      !form.aluno_id ||
+      !form.data_chamada ||
+      form.status_solicitado === "" ||
+      !form.motivo.trim()
+    ) {
+      toast({
+        title: "Preencha todos os campos obrigatórios",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const fd = new FormData();
+      fd.append("turma_id", form.turma_id);
+      fd.append("aluno_id", form.aluno_id);
+      fd.append("aluno_cpf", form.aluno_cpf);
+      fd.append("data_chamada", form.data_chamada);
+      fd.append("status_solicitado", form.status_solicitado);
+      fd.append("motivo", form.motivo);
+      fd.append("tipo", form.tipo);
+      if (selectedFile) fd.append("file", selectedFile);
+
+      await axios.post(`${API}/attendance-change-requests`, fd, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+
+      toast({
+        title: "✅ Solicitação enviada!",
+        description: "O administrador será notificado para revisar.",
+      });
+
+      setForm({
+        turma_id: "",
+        aluno_id: "",
+        aluno_cpf: "",
+        data_chamada: "",
+        status_solicitado: "",
+        motivo: "",
+        tipo: "alteracao_presenca",
+      });
+      setSelectedFile(null);
+      onClose();
+    } catch (err) {
+      toast({
+        title: "Erro ao enviar solicitação",
+        description: err.response?.data?.detail || "Tente novamente",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>📝 Solicitar Correção de Chamada</DialogTitle>
+          <DialogDescription>
+            Preencha os dados abaixo. O administrador irá revisar e aprovar ou
+            negar a alteração.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          {/* Tipo de solicitação */}
+          <div className="space-y-2">
+            <Label>Tipo de Solicitação *</Label>
+            <Select
+              value={form.tipo}
+              onValueChange={(v) => setForm((f) => ({ ...f, tipo: v }))}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="alteracao_presenca">
+                  Corrigir presença ou falta marcada errada
+                </SelectItem>
+                <SelectItem value="justificativa_posterior">
+                  Adicionar justificativa com documento depois da chamada
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Turma */}
+          <div className="space-y-2">
+            <Label>Turma *</Label>
+            <Select value={form.turma_id} onValueChange={handleTurmaChange}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione a turma" />
+              </SelectTrigger>
+              <SelectContent>
+                {turmas.map((t) => (
+                  <SelectItem key={t.id} value={t.id}>
+                    {t.nome}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Aluno */}
+          <div className="space-y-2">
+            <Label>Aluno *</Label>
+            <Select
+              value={form.aluno_id}
+              onValueChange={handleAlunoChange}
+              disabled={!form.turma_id}
+            >
+              <SelectTrigger>
+                <SelectValue
+                  placeholder={
+                    form.turma_id
+                      ? "Selecione o aluno"
+                      : "Selecione a turma primeiro"
+                  }
+                />
+              </SelectTrigger>
+              <SelectContent>
+                {alunos.map((a) => (
+                  <SelectItem key={a.id} value={a.id}>
+                    {a.nome_social || a.nome}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Data da chamada */}
+          <div className="space-y-2">
+            <Label>Data da Chamada que deseja corrigir *</Label>
+            <Input
+              type="date"
+              value={form.data_chamada}
+              max={new Date().toISOString().split("T")[0]}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, data_chamada: e.target.value }))
+              }
+            />
+          </div>
+
+          {/* Alterar para (apenas para alteração de presença) */}
+          {form.tipo === "alteracao_presenca" && (
+            <div className="space-y-2">
+              <Label>Alterar o status do aluno para *</Label>
+              <Select
+                value={String(form.status_solicitado)}
+                onValueChange={(v) =>
+                  setForm((f) => ({ ...f, status_solicitado: v }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o status correto" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="true">✅ Presente</SelectItem>
+                  <SelectItem value="false">❌ Ausente</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {/* Motivo */}
+          <div className="space-y-2">
+            <Label>Motivo da solicitação *</Label>
+            <Textarea
+              value={form.motivo}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, motivo: e.target.value }))
+              }
+              placeholder="Explique por que precisa corrigir esta chamada. Ex: Marquei falta sem querer, aluno estava presente."
+              rows={3}
+            />
+          </div>
+
+          {/* Documento */}
+          <div className="space-y-2">
+            <Label>Documento comprobatório (opcional)</Label>
+            <Input
+              type="file"
+              accept=".pdf,.jpg,.jpeg,.png"
+              onChange={(e) => setSelectedFile(e.target.files[0])}
+            />
+            <p className="text-xs text-gray-500">
+              Atestado, declaração ou outro documento — PDF, JPG, PNG (máx. 5MB)
+            </p>
+          </div>
+
+          {/* Aviso */}
+          <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <p className="text-sm text-yellow-800">
+              ⚠️ A solicitação será enviada ao administrador. Somente após
+              aprovação a chamada será alterada.
+            </p>
+          </div>
+
+          {/* Botões */}
+          <div className="flex justify-end space-x-2 pt-2">
+            <Button variant="outline" onClick={onClose} disabled={saving}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleSubmit}
+              disabled={saving}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              {saving ? (
+                <span className="flex items-center gap-2">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  Enviando...
+                </span>
+              ) : (
+                "📤 Enviar Solicitação"
+              )}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+};
+// ============================================================
+// 🛡️ PAINEL ADMIN: Ver e responder solicitações de correção
+// ============================================================
+const AdminChangeRequestsPanel = () => {
+  const { toast } = useToast();
+  const [requests, setRequests] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [respondingId, setRespondingId] = useState(null);
+  const [resposta, setResposta] = useState("");
+  const [filterStatus, setFilterStatus] = useState("pendente");
+
+  useEffect(() => {
+    fetchRequests();
+  }, [filterStatus]);
+
+  const fetchRequests = async () => {
+    setLoading(true);
+    try {
+      const url = filterStatus
+        ? `${API}/attendance-change-requests?status=${filterStatus}`
+        : `${API}/attendance-change-requests`;
+      const res = await axios.get(url);
+      setRequests(Array.isArray(res.data) ? res.data : []);
+    } catch {
+      setRequests([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRespond = async (id, decision) => {
+    try {
+      await axios.put(
+        `${API}/attendance-change-requests/${id}/respond?decision=${decision}&resposta=${encodeURIComponent(resposta)}`
+      );
+      toast({
+        title:
+          decision === "aprovado"
+            ? "✅ Solicitação aprovada e chamada corrigida!"
+            : "❌ Solicitação negada",
+        description:
+          decision === "aprovado"
+            ? "A chamada foi alterada automaticamente no sistema."
+            : "O professor foi notificado da negação.",
+      });
+      setRespondingId(null);
+      setResposta("");
+      fetchRequests();
+    } catch (err) {
+      toast({
+        title: "Erro ao responder",
+        description: err.response?.data?.detail || "Tente novamente",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const statusLabel = {
+    pendente: "⏳ Pendentes",
+    aprovado: "✅ Aprovadas",
+    negado: "❌ Negadas",
+  };
+
+  const statusBorderColor = {
+    pendente: "border-l-yellow-500",
+    aprovado: "border-l-green-500",
+    negado: "border-l-red-500",
+  };
+
+  const formatDate = (dateStr) => {
+    try {
+      return new Date(dateStr + "T00:00:00").toLocaleDateString("pt-BR");
+    } catch {
+      return dateStr;
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <FileText className="h-5 w-5 text-blue-600" />
+          Solicitações de Correção de Chamada
+        </CardTitle>
+        <CardDescription>
+          Revise e aprove ou negue as solicitações enviadas pelos professores
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {/* Filtros de status */}
+        <div className="flex gap-2 mb-6">
+          {["pendente", "aprovado", "negado"].map((s) => (
+            <Button
+              key={s}
+              variant={filterStatus === s ? "default" : "outline"}
+              size="sm"
+              onClick={() => setFilterStatus(s)}
+            >
+              {statusLabel[s]}
+            </Button>
+          ))}
+        </div>
+
+        {loading ? (
+          <div className="text-center py-8">
+            <RefreshCw className="h-6 w-6 animate-spin mx-auto text-gray-400 mb-2" />
+            <p className="text-gray-500">Carregando solicitações...</p>
+          </div>
+        ) : requests.length === 0 ? (
+          <div className="text-center py-8 text-gray-500">
+            <CheckCircle className="h-10 w-10 mx-auto mb-3 text-green-400" />
+            <p>Nenhuma solicitação {filterStatus} no momento.</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {requests.map((req) => (
+              <Card
+                key={req.id}
+                className={`border-l-4 ${
+                  statusBorderColor[req.status_solicitacao] ||
+                  "border-l-gray-300"
+                }`}
+              >
+                <CardContent className="p-4">
+                  {/* Cabeçalho do card */}
+                  <div className="flex justify-between items-start mb-3">
+                    <div>
+                      <p className="font-semibold text-gray-900 text-base">
+                        {req.aluno_nome}
+                        <span className="text-sm text-gray-500 font-normal ml-2">
+                          CPF: {req.aluno_cpf}
+                        </span>
+                      </p>
+                      <p className="text-sm text-gray-600 mt-1">
+                        <strong>Turma:</strong> {req.turma_nome} |{" "}
+                        <strong>Data da chamada:</strong>{" "}
+                        {formatDate(req.data_chamada)}
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        <strong>Solicitado por:</strong> {req.solicitado_por_nome}
+                      </p>
+                    </div>
+                    <Badge
+                      variant={
+                        req.status_solicitacao === "aprovado"
+                          ? "default"
+                          : req.status_solicitacao === "negado"
+                          ? "destructive"
+                          : "outline"
+                      }
+                    >
+                      {req.status_solicitacao === "pendente"
+                        ? "⏳ Pendente"
+                        : req.status_solicitacao === "aprovado"
+                        ? "✅ Aprovado"
+                        : "❌ Negado"}
+                    </Badge>
+                  </div>
+
+                  {/* Tipo e alteração */}
+                  <div className="p-2 bg-gray-50 rounded-lg mb-3 text-sm">
+                    <p>
+                      <strong>Tipo:</strong>{" "}
+                      {req.tipo === "alteracao_presenca"
+                        ? "Correção de presença/falta"
+                        : "Justificativa posterior"}
+                    </p>
+                    {req.tipo === "alteracao_presenca" && (
+                      <p>
+                        <strong>Alteração pedida:</strong>{" "}
+                        {req.status_atual ? "✅ Presente" : "❌ Ausente"} →{" "}
+                        {req.status_solicitado ? "✅ Presente" : "❌ Ausente"}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Motivo */}
+                  <div className="p-2 bg-blue-50 border border-blue-100 rounded-lg mb-3">
+                    <p className="text-sm font-medium text-blue-800 mb-1">
+                      Motivo informado:
+                    </p>
+                    <p className="text-sm text-blue-700">{req.motivo}</p>
+                  </div>
+
+                  {/* Documento anexado */}
+                  {req.arquivo_nome && (
+                    <p className="text-xs text-gray-500 mb-3">
+                      📎 Documento anexado: {req.arquivo_nome}
+                    </p>
+                  )}
+
+                  {/* Resposta do admin (se já respondido) */}
+                  {req.admin_resposta && (
+                    <div className="p-2 bg-gray-100 rounded-lg mb-3">
+                      <p className="text-xs text-gray-500">
+                        Resposta do admin ({req.respondido_por_nome}):{" "}
+                        {req.admin_resposta}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Área de resposta (apenas se pendente) */}
+                  {req.status_solicitacao === "pendente" && (
+                    <div className="mt-3 pt-3 border-t">
+                      {respondingId === req.id ? (
+                        <div className="space-y-3">
+                          <Textarea
+                            value={resposta}
+                            onChange={(e) => setResposta(e.target.value)}
+                            placeholder="Adicione uma observação para o professor (opcional)..."
+                            rows={2}
+                            className="text-sm"
+                          />
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              onClick={() => handleRespond(req.id, "aprovado")}
+                              className="bg-green-600 hover:bg-green-700"
+                            >
+                              <CheckCircle className="h-4 w-4 mr-1" />
+                              Aprovar e Corrigir Chamada
+                            </Button>
+                            <Button
+                              size="sm"
+                              onClick={() => handleRespond(req.id, "negado")}
+                              className="bg-red-600 hover:bg-red-700"
+                            >
+                              <X className="h-4 w-4 mr-1" />
+                              Negar
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                setRespondingId(null);
+                                setResposta("");
+                              }}
+                            >
+                              Cancelar
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setRespondingId(req.id)}
+                          className="border-blue-400 text-blue-600 hover:bg-blue-50"
+                        >
+                          <Edit className="h-4 w-4 mr-1" />
+                          Responder esta solicitação
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+
+        <div className="mt-4 flex justify-end">
+          <Button variant="outline" size="sm" onClick={fetchRequests}>
+            <RefreshCw className="h-4 w-4 mr-1" />
+            Atualizar lista
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
   // Login Component
   const Login = () => {
     const [email, setEmail] = useState("");
@@ -1826,12 +2377,20 @@
                   </TabsTrigger>
                 </>
               )}
+              {user?.tipo === "admin" && (
+                <TabsTrigger
+                  value="solicitacoes"
+                  className="flex-1 min-w-0 text-sm whitespace-nowrap"
+                >
+                  Solicitações
+                </TabsTrigger>
+              )}
               <TabsTrigger
                 value="relatorios"
                 className="flex-1 min-w-0 text-sm whitespace-nowrap"
               >
                 Relatórios
-              </TabsTrigger>
+              </TabsTrigger>              </TabsTrigger>
             </TabsList>
   
             <TabsContent value="turmas">
@@ -1867,6 +2426,12 @@
               </>
             )}
   
+            {user?.tipo === "admin" && (
+              <TabsContent value="solicitacoes">
+                <AdminChangeRequestsPanel />
+              </TabsContent>
+            )}
+
             <TabsContent value="relatorios">
               <RelatoriosManager />
             </TabsContent>
@@ -1901,6 +2466,7 @@
     const [selectedFileAtestado, setSelectedFileAtestado] = useState(null);
   
     // Estados para modal de justificativa
+    const [isChangeRequestOpen, setIsChangeRequestOpen] = useState(false);
     const [isJustificativaDialogOpen, setIsJustificativaDialogOpen] =
       useState(false);
     const [selectedAlunoJustificativa, setSelectedAlunoJustificativa] =
@@ -2500,11 +3066,33 @@
             </>
           )}
   
-          {selectedTurma && alunos.length === 0 && !loadingAlunos && (
+{selectedTurma && alunos.length === 0 && !loadingAlunos && (
             <div className="text-center py-8 text-gray-500">
               <Users className="h-12 w-12 mx-auto mb-4 text-gray-300" />
               <p>Nenhum aluno encontrado nesta turma</p>
             </div>
+          )}
+
+          {/* Botão para solicitar correção de chamada anterior */}
+          <div className="mt-4 pt-4 border-t border-gray-200">
+            <Button
+              variant="outline"
+              onClick={() => setIsChangeRequestOpen(true)}
+              className="w-full border-orange-400 text-orange-600 hover:bg-orange-50"
+            >
+              <Edit className="h-4 w-4 mr-2" />
+              Solicitar Correção de Chamada Anterior
+            </Button>
+            <p className="text-xs text-gray-400 mt-2 text-center">
+              Errou ao marcar presença ou falta em um dia anterior? Solicite a
+              correção ao administrador.
+            </p>
+          </div>
+
+          <AttendanceChangeRequestModal
+            open={isChangeRequestOpen}
+            onClose={() => setIsChangeRequestOpen(false)}
+          />
           )}
         </CardContent>
   
@@ -4292,7 +4880,7 @@ const UsuariosManager = () => {
       return () => clearInterval(interval);
     }, [user]);
   
-    // � FUNÇÃO PING PARA ACORDAR RENDER (DASHBOARD)
+    // 🔍 FUNÇÃO PING PARA ACORDAR RENDER (DASHBOARD)
     const wakeUpBackendDashboard = async () => {
       console.log("🔔 Acordando backend Render para dashboard...");
       try {
@@ -4304,92 +4892,68 @@ const UsuariosManager = () => {
         return false;
       }
     };
-  
-    // �📊 CONEXÃO DIRETA MONGODB - SEM CACHE, SEMPRE ATUALIZADO
-    const fetchDadosBasicos = async () => {
-      console.log("🔍 Iniciando carregamento direto MongoDB via Render Backend");
-      setDadosCarregando(true);
-  
-      try {
-        // 🚀 PRIMEIRO: Acordar o backend
-        const backendAwake = await wakeUpBackendDashboard();
-        if (!backendAwake) {
-          console.warn(
-            "⚠️ Backend pode estar dormindo, tentando requisições diretas...",
-          );
-        }
-  
-        // 🎯 REQUISIÇÕES DIRETAS PARA ENDPOINTS CORRETOS
-        const [alunosResponse, chamadasResponse] = await Promise.all([
-          axios.get(`${API}/students`, {
-            timeout: 60000,
-            headers: {
-              Accept: "application/json",
-              Authorization: `Bearer ${localStorage.getItem("token")}`,
-            },
-          }),
-          // ✅ ENDPOINT CORRETO: reports/attendance (não apenas /attendance)
-          axios.get(`${API}/reports/attendance`, {
-            timeout: 60000,
-            headers: {
-              Accept: "application/json",
-              Authorization: `Bearer ${localStorage.getItem("token")}`,
-            },
-          }),
-        ]);
-  
-        // ✅ DEFINIR DADOS SEMPRE (nunca undefined)
-        const alunosData = Array.isArray(alunosResponse.data)
-          ? alunosResponse.data
-          : [];
-        const chamadasData = Array.isArray(chamadasResponse.data)
-          ? chamadasResponse.data
-          : [];
-  
-        setAlunos(alunosData);
-        setChamadas(chamadasData);
-  
-        console.log(
-          `✅ Dados carregados: ${alunosData.length} alunos, ${chamadasData.length} chamadas`,
+
+const fetchDadosBasicos = async () => {
+    console.log("🔍 Iniciando carregamento direto MongoDB via Render Backend");
+    setDadosCarregando(true);
+
+    try {
+      // 🚀 PRIMEIRO: Acordar o backend
+      const backendAwake = await wakeUpBackendDashboard();
+      if (!backendAwake) {
+        console.warn(
+          "⚠️ Backend pode estar dormindo, tentando requisições diretas...",
         );
-  
-        toast({
-          title: "✅ Dados MongoDB Carregados",
-          description: `${alunosData.length} alunos e ${chamadasData.length} chamadas carregados`,
-          variant: "default",
-        });
-      } catch (error) {
-        console.error("❌ Erro ao carregar dados MongoDB:", error);
-  
-        // 🎯 DIAGNÓSTICO DETALHADO
-        if (error.response?.status === 405) {
-          console.error(
-            "🚨 Erro 405: Método HTTP incorreto ou endpoint não existe",
-          );
-        } else if (error.response?.status === 401) {
-          console.error(
-            "🚨 Erro 401: Token inválido ou expirado - faça login novamente",
-          );
-        } else if (error.code === "ECONNABORTED") {
-          console.error("🚨 Timeout: Backend Render demorou mais que 60s");
-        }
-  
-        // ⚠️ SEMPRE DEFINIR ARRAYS VAZIOS (nunca undefined)
-        setAlunos([]);
-        setChamadas([]);
-  
-        toast({
-          title: "❌ Erro ao Carregar Dados",
-          description:
-            "Falha na conexão com MongoDB. Verifique se o backend está online.",
-          variant: "destructive",
-        });
-      } finally {
-        setDadosCarregando(false);
-        setUltimaAtualizacao(new Date().toISOString());
       }
-    };
-  
+
+      // 🎯 BUSCAR APENAS ALUNOS — chamadas são calculadas pelo backend em /reports/teacher-stats
+      const alunosResponse = await axios.get(`${API}/students`, {
+        timeout: 60000,
+        headers: {
+          Accept: "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      });
+
+      // ✅ DEFINIR DADOS SEMPRE (nunca undefined)
+      const alunosData = Array.isArray(alunosResponse.data)
+        ? alunosResponse.data
+        : [];
+
+      setAlunos(alunosData);
+      setChamadas([]); // Chamadas são calculadas pelo backend, não precisamos aqui
+
+      console.log(`✅ Dados carregados: ${alunosData.length} alunos`);
+
+      toast({
+        title: "✅ Dados Carregados",
+        description: `${alunosData.length} alunos carregados com sucesso`,
+        variant: "default",
+      });
+    } catch (error) {
+      console.error("❌ Erro ao carregar dados:", error);
+
+      if (error.response?.status === 401) {
+        console.error("🚨 Erro 401: Token inválido ou expirado - faça login novamente");
+      } else if (error.code === "ECONNABORTED") {
+        console.error("🚨 Timeout: Backend demorou mais que 60s");
+      }
+
+      // ⚠️ SEMPRE DEFINIR ARRAYS VAZIOS (nunca undefined)
+      setAlunos([]);
+      setChamadas([]);
+
+      toast({
+        title: "❌ Erro ao Carregar Dados",
+        description: "Falha na conexão. Verifique se o backend está online.",
+        variant: "destructive",
+      });
+    } finally {
+      setDadosCarregando(false);
+      setUltimaAtualizacao(new Date().toISOString());
+    }
+  };
+                      
     const fetchFilterData = async () => {
       try {
         const [unidadesRes, cursosRes, turmasRes] = await Promise.all([
