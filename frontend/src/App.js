@@ -1966,31 +1966,24 @@ const AdminChangeRequestsPanel = () => {
                                       : "Pendente"}
                                 </Badge>
                               </div>
-  
-                              <div className="space-y-1 text-sm text-gray-600">
+                               <div className="space-y-1 text-sm text-gray-600">
                                 <p>
-                                  <strong>Instrutor:</strong>{" "}
-                                  {notification.instrutor_nome}
+                                  <strong>Horário:</strong>{" "}
+                                  {notification.horario || "Não definido"}
                                 </p>
                                 <p>
-                                  <strong>Unidade:</strong>{" "}
-                                  {notification.unidade_nome}
-                                </p>
-                                <p>
-                                  <strong>Curso:</strong>{" "}
-                                  {notification.curso_nome}
+                                  <strong>Alunos:</strong>{" "}
+                                  {notification.alunos?.length || 0} alunos
                                 </p>
                                 <p
                                   className={`font-medium ${getPriorityColor(
                                     notification.prioridade,
                                   )}`}
                                 >
-                                  <strong>Última chamada:</strong>{" "}
-                                  {formatDate(notification.data_faltante)}
+                                  <strong>Data pendente:</strong>{" "}
+                                  {formatDate(notification.data_pendente)}
                                 </p>
-                              </div>
-                            </div>
-  
+                              </div>  
                             <AlertTriangle
                               className={`h-5 w-5 ${getPriorityColor(
                                 notification.prioridade,
@@ -3066,7 +3059,7 @@ const AdminChangeRequestsPanel = () => {
             </>
           )}
   
-{selectedTurma && alunos.length === 0 && !loadingAlunos && (
+            {selectedTurma && alunos.length === 0 && !loadingAlunos && (
             <div className="text-center py-8 text-gray-500">
               <Users className="h-12 w-12 mx-auto mb-4 text-gray-300" />
               <p>Nenhum aluno encontrado nesta turma</p>
@@ -5444,7 +5437,7 @@ const fetchDadosBasicos = async () => {
         )}
         <CardContent>
           {/* Verificar se há dados após filtros */}
-          {stats && stats.total_alunos === 0 && user?.tipo === "admin" && (
+            {stats && stats.total_alunos === 0 && !loading && alunos.length === 0 && user?.tipo === "admin" && (
             <div className="text-center py-8">
               <AlertCircle className="h-12 w-12 mx-auto mb-4 text-gray-400" />
               <h3 className="text-lg font-medium text-gray-600 mb-2">
