@@ -2390,7 +2390,7 @@ const AdminChangeRequestsPanel = () => {
                 className="flex-1 min-w-0 text-sm whitespace-nowrap"
               >
                 Relatórios
-              </TabsTrigger>              </TabsTrigger>
+              </TabsTrigger>             
             </TabsList>
   
             <TabsContent value="turmas">
@@ -3093,7 +3093,6 @@ const AdminChangeRequestsPanel = () => {
             open={isChangeRequestOpen}
             onClose={() => setIsChangeRequestOpen(false)}
           />
-          )}
         </CardContent>
   
         {/* Dialog para upload de atestado na chamada */}
