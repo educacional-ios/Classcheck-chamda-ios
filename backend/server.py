@@ -5000,38 +5000,42 @@ async def get_dynamic_teacher_stats(
             "maiores_faltas": [],
             "resumo_turmas": []
         }
-    
+# 📊 BUSCAR TODAS AS CHAMADAS DE UMA VEZ (evita timeout)
+    todas_chamadas = await db.attendances.find(
+        {"turma_id": {"$in": turma_ids}}
+    ).to_list(10000)
+
+    # Aplicar filtro de data em memória
+    if data_inicio or data_fim:
+        todas_chamadas = [
+            c for c in todas_chamadas
+            if (not data_inicio or c.get("data", "") >= data_inicio.isoformat())
+            and (not data_fim or c.get("data", "") <= data_fim.isoformat())
+        ]
+
+    # Indexar chamadas por turma_id para acesso rápido
+    chamadas_por_turma = {}
+    for chamada in todas_chamadas:
+        tid = chamada.get("turma_id")
+        if tid not in chamadas_por_turma:
+            chamadas_por_turma[tid] = []
+        chamadas_por_turma[tid].append(chamada)
+
     # 📊 Calcular estatísticas dinâmicas por aluno
     alunos_stats = []
     for turma in turmas:
         aluno_ids = turma.get("alunos_ids", [])
         if not aluno_ids:
             continue
-            
-        # Buscar alunos da turma
+
         alunos = await db.alunos.find({"id": {"$in": aluno_ids}}).to_list(1000)
-        
+        chamadas_turma = chamadas_por_turma.get(turma["id"], [])
+
         for aluno in alunos:
-            # Contar presenças e faltas do aluno nesta turma com filtro de data
-            query_chamadas = {"turma_id": turma["id"]}
-            
-            # Aplicar filtro de data se fornecido
-            if data_inicio and data_fim:
-                query_chamadas["data"] = {"$gte": data_inicio.isoformat(), "$lte": data_fim.isoformat()}
-            elif data_inicio:
-                query_chamadas["data"] = {"$gte": data_inicio.isoformat()}
-            elif data_fim:
-                query_chamadas["data"] = {"$lte": data_fim.isoformat()}
-            
-            # 🎯 CORREÇÃO CRÍTICA: Usar collection 'attendances' (não 'chamadas')
-            chamadas = await db.attendances.find(query_chamadas).to_list(1000)
-            
-            total_aulas = len(chamadas)
             presencas = 0
             faltas = 0
-            
-            for chamada in chamadas:
-                # ✅ CORREÇÃO: Usar 'records' em vez de 'presencas'
+
+            for chamada in chamadas_turma:
                 records = chamada.get("records", [])
                 for record in records:
                     if record.get("aluno_id") == aluno["id"]:
@@ -5039,12 +5043,10 @@ async def get_dynamic_teacher_stats(
                             presencas += 1
                         else:
                             faltas += 1
-            
-            if total_aulas > 0:
-                taxa_presenca = (presencas / total_aulas) * 100
-            else:
-                taxa_presenca = 0
-            
+
+            total_aulas = presencas + faltas
+            taxa_presenca = round((presencas / total_aulas) * 100, 1) if total_aulas > 0 else 0
+
             alunos_stats.append({
                 "id": aluno["id"],
                 "nome": aluno["nome"],
@@ -5052,10 +5054,9 @@ async def get_dynamic_teacher_stats(
                 "presencas": presencas,
                 "faltas": faltas,
                 "total_aulas": total_aulas,
-                "taxa_presenca": round(taxa_presenca, 1),
+                "taxa_presenca": taxa_presenca,
                 "status": aluno.get("status", "ativo")
-            })
-    
+            })    
     # 📊 Calcular métricas gerais - APENAS ALUNOS ATIVOS
     alunos_ativos_stats = [a for a in alunos_stats if a["status"] == "ativo"]
     
