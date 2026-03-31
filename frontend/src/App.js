@@ -6973,7 +6973,7 @@ const fetchAlunos = async () => {
               </TableBody>
             </Table>
           </div>
-        </CardContent>
+        </CardContent> {/* ← LINHA NOVA: fecha o CardContent que abria antes dos filtros */}
   
         {/* Dialog para registrar desistência */}
         <Dialog open={isDropoutDialogOpen} onOpenChange={setIsDropoutDialogOpen}>
