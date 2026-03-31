@@ -579,7 +579,7 @@
     };
   
     return (
-      <AuthContext.Provider value={{ user, login, logout, loading }}>
+      <AuthContext.Provider value={{ user, setUser, login, logout, loading }}>
         {children}
       </AuthContext.Provider>
     );
@@ -1507,6 +1507,240 @@ const AdminChangeRequestsPanel = () => {
     </Card>
   );
 };
+
+// ============================================================
+// 🔐 PÁGINA OBRIGATÓRIA DE TROCA DE SENHA (PRIMEIRO ACESSO)
+// ============================================================
+const PrimeiroAcessoPage = ({ onSenhaAlterada }) => {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [senhaAtual, setSenhaAtual] = useState("");
+  const [novaSenha, setNovaSenha] = useState("");
+  const [confirmarSenha, setConfirmarSenha] = useState("");
+  const [salvando, setSalvando] = useState(false);
+  const [mostrarSenhas, setMostrarSenhas] = useState(false);
+
+  const handleTrocarSenha = async () => {
+    if (!senhaAtual || !novaSenha || !confirmarSenha) {
+      toast({
+        title: "Preencha todos os campos",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (novaSenha.length < 6) {
+      toast({
+        title: "Senha muito curta",
+        description: "A nova senha deve ter pelo menos 6 caracteres.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (novaSenha !== confirmarSenha) {
+      toast({
+        title: "As senhas não coincidem",
+        description: "A nova senha e a confirmação precisam ser iguais.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (novaSenha === senhaAtual) {
+      toast({
+        title: "Senha igual à atual",
+        description: "A nova senha deve ser diferente da senha temporária.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSalvando(true);
+    try {
+      await axios.post(
+        `${API}/auth/change-password`,
+        { senha_atual: senhaAtual, nova_senha: novaSenha },
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
+
+      toast({
+        title: "✅ Senha alterada com sucesso!",
+        description: "Bem-vindo ao sistema. Você será redirecionado agora.",
+      });
+
+      // Aguarda 1 segundo para o usuário ver o toast e depois libera o sistema
+      setTimeout(() => {
+        onSenhaAlterada();
+      }, 1500);
+    } catch (err) {
+      toast({
+        title: "Erro ao trocar senha",
+        description:
+          err.response?.data?.detail ||
+          "Verifique se a senha atual está correta.",
+        variant: "destructive",
+      });
+    } finally {
+      setSalvando(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+      <div className="w-full max-w-md">
+        {/* Card principal */}
+        <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
+          {/* Header */}
+          <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-6 text-white text-center">
+            <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-3">
+              <Lock className="h-8 w-8 text-white" />
+            </div>
+            <h1 className="text-2xl font-bold">Primeiro Acesso</h1>
+            <p className="text-blue-100 text-sm mt-1">
+              Olá, {user?.nome?.split(" ")[0]}! Troque sua senha para continuar.
+            </p>
+          </div>
+
+          {/* Aviso */}
+          <div className="mx-6 mt-5 p-3 bg-yellow-50 border border-yellow-200 rounded-lg flex gap-2">
+            <AlertTriangle className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+            <p className="text-sm text-yellow-800">
+              Por segurança, você precisa trocar a senha temporária antes de
+              usar o sistema.
+            </p>
+          </div>
+
+          {/* Formulário */}
+          <div className="p-6 space-y-4">
+            <div className="space-y-2">
+              <Label className="text-gray-700 font-medium">
+                Senha temporária atual
+              </Label>
+              <div className="relative">
+                <Input
+                  type={mostrarSenhas ? "text" : "password"}
+                  value={senhaAtual}
+                  onChange={(e) => setSenhaAtual(e.target.value)}
+                  placeholder="Digite sua senha temporária"
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setMostrarSenhas(!mostrarSenhas)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  {mostrarSenhas ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-gray-700 font-medium">Nova senha</Label>
+              <Input
+                type={mostrarSenhas ? "text" : "password"}
+                value={novaSenha}
+                onChange={(e) => setNovaSenha(e.target.value)}
+                placeholder="Mínimo 6 caracteres"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-gray-700 font-medium">
+                Confirmar nova senha
+              </Label>
+              <Input
+                type={mostrarSenhas ? "text" : "password"}
+                value={confirmarSenha}
+                onChange={(e) => setConfirmarSenha(e.target.value)}
+                placeholder="Repita a nova senha"
+                onKeyDown={(e) => e.key === "Enter" && handleTrocarSenha()}
+              />
+            </div>
+
+            {/* Indicador de força da senha */}
+            {novaSenha && (
+              <div className="space-y-1">
+                <div className="flex gap-1">
+                  {[1, 2, 3, 4].map((nivel) => (
+                    <div
+                      key={nivel}
+                      className={`h-1.5 flex-1 rounded-full transition-colors ${
+                        novaSenha.length >= nivel * 3
+                          ? nivel <= 1
+                            ? "bg-red-400"
+                            : nivel <= 2
+                            ? "bg-yellow-400"
+                            : nivel <= 3
+                            ? "bg-blue-400"
+                            : "bg-green-400"
+                          : "bg-gray-200"
+                      }`}
+                    />
+                  ))}
+                </div>
+                <p className="text-xs text-gray-500">
+                  {novaSenha.length < 6
+                    ? "Senha muito curta"
+                    : novaSenha.length < 9
+                    ? "Senha razoável"
+                    : novaSenha.length < 12
+                    ? "Senha boa"
+                    : "Senha forte"}
+                </p>
+              </div>
+            )}
+
+            <Button
+              onClick={handleTrocarSenha}
+              disabled={salvando}
+              className="w-full bg-blue-600 hover:bg-blue-700 mt-2"
+            >
+              {salvando ? (
+                <span className="flex items-center gap-2 justify-center">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                  Salvando...
+                </span>
+              ) : (
+                <span className="flex items-center gap-2 justify-center">
+                  <Lock className="h-4 w-4" />
+                  Trocar Senha e Entrar no Sistema
+                </span>
+              )}
+            </Button>
+          </div>
+
+          {/* Rodapé */}
+          <div className="px-6 pb-5 text-center">
+            <p className="text-xs text-gray-400">
+              Senha padrão: <strong>IOS2026</strong> + suas iniciais.
+              <br />
+              Ex: Maria Silva Santos → <strong>IOS2026mss</strong>
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+```
+
+---
+
+### Alteração 2 — Fazer o sistema redirecionar após o login
+
+**Pesquise por:**
+```
+const Dashboard = () => {
+
   // Login Component
   const Login = () => {
     const [email, setEmail] = useState("");
@@ -1829,7 +2063,7 @@ const AdminChangeRequestsPanel = () => {
     const [notifications, setNotifications] = useState([]);
     const [loading, setLoading] = useState(false);
     const [showDialog, setShowDialog] = useState(false);
-    const { user } = useAuth();
+    const { user, setUser } = useAuth();
     const { toast } = useToast();
   
     // Buscar notificações ao montar o componente
@@ -8164,8 +8398,8 @@ const fetchAlunos = async () => {
     return <Login />;
   };
   
-  const ProtectedRoute = ({ children }) => {
-    const { user, loading } = useAuth();
+    const ProtectedRoute = ({ children }) => {
+      const { user, setUser, loading } = useAuth();
   
     if (loading)
       return (
@@ -8177,7 +8411,19 @@ const fetchAlunos = async () => {
         </div>
       );
     if (!user) return <Navigate to="/login" replace />;
-  
-    return children;
-  };
-  export default App;
+
+  // 🔐 PRIMEIRO ACESSO: Redirecionar para troca de senha obrigatória
+  if (user?.primeiro_acesso === true) {
+    return (
+      <PrimeiroAcessoPage
+        onSenhaAlterada={() => {
+          setUser((prev) => ({ ...prev, primeiro_acesso: false }));
+        }}
+      />
+    );
+  }
+
+return children;
+};
+
+export default App;
