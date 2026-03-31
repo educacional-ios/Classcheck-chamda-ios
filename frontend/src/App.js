@@ -6973,7 +6973,8 @@ const fetchAlunos = async () => {
         </TableBody>
             </Table>
           </div>
-  
+        </CardContent>
+
         {/* Dialog para registrar desistência */}
         <Dialog open={isDropoutDialogOpen} onOpenChange={setIsDropoutDialogOpen}>
           <DialogContent>
