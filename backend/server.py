@@ -1298,7 +1298,7 @@ async def create_aluno(aluno_create: AlunoCreate, current_user: UserResponse = D
 @api_router.get("/students", response_model=List[Aluno])
 async def get_alunos(
     skip: int = 0,
-    limit: int = 100,
+    limit: int = Query(default=5000, le=10000),
     status: Optional[str] = None,
     current_user: UserResponse = Depends(get_current_user)
 ):
@@ -1426,7 +1426,8 @@ async def get_alunos(
 
 @api_router.put("/students/{aluno_id}", response_model=Aluno)
 async def update_aluno(aluno_id: str, aluno_update: AlunoUpdate, current_user: UserResponse = Depends(get_current_user)):
-    check_admin_permission(current_user)
+    if current_user.tipo not in ["admin", "instrutor", "pedagogo"]:
+        raise HTTPException(status_code=403, detail="Sem permissão para editar alunos")
     
     # Usar __fields_set__ para capturar campos enviados explicitamente (inclusive null)
     update_data = {
