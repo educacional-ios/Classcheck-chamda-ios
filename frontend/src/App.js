@@ -2181,6 +2181,9 @@ const Dashboard = () => {
                         className="border-l-4 border-l-orange-500"
                       >
                         <CardContent className="p-4">
+                        {notifications.map((notification) => (
+                      <Card key={notification.id} className="mb-4">
+                        <CardContent className="p-4">
                           <div className="flex items-start justify-between">
                             <div className="flex-1">
                               <div className="flex items-center gap-2 mb-2">
@@ -2189,9 +2192,7 @@ const Dashboard = () => {
                                 </h4>
                                 <Badge
                                   variant="outline"
-                                  className={getPriorityBadge(
-                                    notification.prioridade,
-                                  )}
+                                  className={getPriorityBadge(notification.prioridade)}
                                 >
                                   {notification.prioridade === "alta"
                                     ? "Urgente"
@@ -2200,64 +2201,49 @@ const Dashboard = () => {
                                       : "Pendente"}
                                 </Badge>
                               </div>
-                                  <div className="space-y-1 text-sm text-gray-600">
-                              <p>
-                                <strong>Horário:</strong>{" "}
-                                {notification.horario || "Não definido"}
-                              </p>
-                              <p>
-                                <strong>Alunos:</strong>{" "}
-                                {notification.alunos?.length || 0} alunos
-                              </p>
-                              <p
-                                className={`font-medium ${getPriorityColor(
-                                  notification.prioridade,
-                                )}`}
-                              >
-                                <strong>Data pendente:</strong>{" "}
-                                {formatDate(notification.data_pendente)}
-                              </p>
+                    
+                              <div className="space-y-1 text-sm text-gray-600">
+                                <p><strong>Horário:</strong> {notification.horario || "Não definido"}</p>
+                                <p><strong>Alunos:</strong> {notification.alunos?.length || 0} alunos</p>
+                                <p className={`font-medium ${getPriorityColor(notification.prioridade)}`}>
+                                  <strong>Data pendente:</strong> {formatDate(notification.data_pendente)}
+                                </p>
+                              </div>
                             </div>
+                    
+                            <AlertTriangle
+                              className={`h-5 w-5 ${getPriorityColor(notification.prioridade)}`}
+                            />
                           </div>
-                          </div>
-                          <AlertTriangle
-                            className={`h-5 w-5 ${getPriorityColor(
-                              notification.prioridade,
-                            )}`}
-                          />
-                        </div>
-
+                    
                           <p className="text-xs text-gray-500 mt-3 italic">
                             {notification.motivo}
                           </p>
                         </CardContent>
-                      </Card>
-                    ))}
-                </div>
-              )}
-            </div>
-  
-            <div className="flex justify-between items-center pt-4 border-t">
-              <Button
-                variant="outline"
-                onClick={fetchNotifications}
-                disabled={loading}
-                size="sm"
-              >
-                <RefreshCw
-                  className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`}
-                />
-                Atualizar
-              </Button>
-  
-              <Button onClick={() => setShowDialog(false)}>Fechar</Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-      </>
-    );
-  };
-  
+                      </Card> 
+                    ))} {/* <--- FECHA O MAP AQUI */}
+                    
+                    </div> {/* <--- FECHA A DIV QUE ENVOLVE OS CARDS */}
+                    )} {/* <--- FECHA O BLOCO CONDICIONAL */}
+                    </div> {/* <--- FECHA A DIV PRINCIPAL DO CONTEÚDO */}
+                    
+                    <div className="flex justify-between items-center pt-4 border-t">
+                      <Button
+                        variant="outline"
+                        onClick={fetchNotifications}
+                        disabled={loading}
+                        size="sm"
+                      >
+                        <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
+                        Atualizar
+                      </Button>
+                      <Button onClick={() => setShowDialog(false)}>Fechar</Button>
+                    </div>
+                    
+                    </DialogContent> {/* <--- FECHA O DIALOG CONTENT */}
+                    </Dialog> {/* <--- FECHA O DIALOG */}
+                    
+                      
   // Dashboard Component
   const Dashboard = () => {
     const [stats, setStats] = useState({});
