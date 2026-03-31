@@ -2200,31 +2200,32 @@ const Dashboard = () => {
                                       : "Pendente"}
                                 </Badge>
                               </div>
-                               <div className="space-y-1 text-sm text-gray-600">
-                                <p>
-                                  <strong>Horário:</strong>{" "}
-                                  {notification.horario || "Não definido"}
-                                </p>
-                                <p>
-                                  <strong>Alunos:</strong>{" "}
-                                  {notification.alunos?.length || 0} alunos
-                                </p>
-                                <p
-                                  className={`font-medium ${getPriorityColor(
-                                    notification.prioridade,
-                                  )}`}
-                                >
-                                  <strong>Data pendente:</strong>{" "}
-                                  {formatDate(notification.data_pendente)}
-                                </p>
-                              </div>  
-                            <AlertTriangle
-                              className={`h-5 w-5 ${getPriorityColor(
-                                notification.prioridade,
-                              )}`}
-                            />
+                                  <div className="space-y-1 text-sm text-gray-600">
+                              <p>
+                                <strong>Horário:</strong>{" "}
+                                {notification.horario || "Não definido"}
+                              </p>
+                              <p>
+                                <strong>Alunos:</strong>{" "}
+                                {notification.alunos?.length || 0} alunos
+                              </p>
+                              <p
+                                className={`font-medium ${getPriorityColor(
+                                  notification.prioridade,
+                                )}`}
+                              >
+                                <strong>Data pendente:</strong>{" "}
+                                {formatDate(notification.data_pendente)}
+                              </p>
+                            </div>
                           </div>
-  
+                          <AlertTriangle
+                            className={`h-5 w-5 ${getPriorityColor(
+                              notification.prioridade,
+                            )}`}
+                          />
+                        </div>
+
                           <p className="text-xs text-gray-500 mt-3 italic">
                             {notification.motivo}
                           </p>
