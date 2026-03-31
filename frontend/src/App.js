@@ -2219,6 +2219,7 @@ const Dashboard = () => {
                               </p>
                             </div>
                           </div>
+                          </div>
                           <AlertTriangle
                             className={`h-5 w-5 ${getPriorityColor(
                               notification.prioridade,
