@@ -2716,7 +2716,7 @@ const Login = () => {
         if (justificationForm.file) {
           formData.append("file", justificationForm.file);
         }
-  
+        
         await axios.post(
           `${API}/students/${selectedAlunoJustificativa.id}/justifications`,
           formData,
@@ -2724,6 +2724,7 @@ const Login = () => {
             headers: {
               "Content-Type": "multipart/form-data",
             },
+            timeout: 30000,
           },
         );
   
@@ -8425,7 +8426,7 @@ const fetchAlunos = async () => {
     if (!user) return <Navigate to="/login" replace />;
 
   // 🔐 PRIMEIRO ACESSO: Redirecionar para troca de senha obrigatória
-  if (user?.primeiro_acesso === true) {
+  if (user?.primeiro_acesso === true || user?.primeiro_acesso === 1 || user?.primeiro_acesso === "true") {
     return (
       <PrimeiroAcessoPage
         onSenhaAlterada={() => {
