@@ -1732,33 +1732,23 @@ const PrimeiroAcessoPage = ({ onSenhaAlterada }) => {
     </div>
   );
 };
-```
-
----
-
-### Alteração 2 — Fazer o sistema redirecionar após o login
-
-**Pesquise por:**
-```
-const Dashboard = () => {
-
-  // Login Component
-  const Login = () => {
-    const [email, setEmail] = useState("");
-    const [senha, setSenha] = useState("");
-    const [loading, setLoading] = useState(false);
-    const [showFirstAccess, setShowFirstAccess] = useState(false);
-    const [showResetPassword, setShowResetPassword] = useState(false);
-    const [resetEmail, setResetEmail] = useState("");
-    const [resetLoading, setResetLoading] = useState(false);
-    const [showBrandCard, setShowBrandCard] = useState(false);
-    const [firstAccessData, setFirstAccessData] = useState({
-      nome: "",
-      email: "",
-      tipo: "instrutor",
-    });
-    const { login } = useAuth();
-    const { toast } = useToast();
+// Login Component
+const Login = () => {
+  const [email, setEmail] = useState("");
+  const [senha, setSenha] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [showFirstAccess, setShowFirstAccess] = useState(false);
+  const [showResetPassword, setShowResetPassword] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetLoading, setResetLoading] = useState(false);
+  const [showBrandCard, setShowBrandCard] = useState(false);
+  const [firstAccessData, setFirstAccessData] = useState({
+    nome: "",
+    email: "",
+    tipo: "instrutor",
+  });
+  const { login } = useAuth();
+  const { toast } = useToast();
   
     // Animação do card temporal da marca
     useEffect(() => {
