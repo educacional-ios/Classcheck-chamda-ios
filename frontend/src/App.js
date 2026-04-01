@@ -4190,21 +4190,18 @@ const UsuariosManager = () => {
     const fetchData = async () => {
       try {
         console.log("Fetching turmas data...");
-        const [
-          turmasRes,
-          unidadesRes,
-          cursosRes,
-          instrutoresRes,
-          pedagogosRes,
-          alunosRes,
-        ] = await Promise.all([
-          axios.get(`${API}/classes`),
-          axios.get(`${API}/units`),
-          axios.get(`${API}/courses`),
-          axios.get(`${API}/users?tipo=instrutor`),
-          axios.get(`${API}/users?tipo=pedagogo`),
-          axios.get(`${API}/students`),
-        ]);
+
+    const isAdmin = user?.tipo === "admin";
+
+    const [turmasRes, unidadesRes, cursosRes, alunosRes, instrutoresRes, pedagogosRes] =
+      await Promise.all([
+        axios.get(`${API}/classes`),
+        axios.get(`${API}/units`),
+        axios.get(`${API}/courses`),
+        axios.get(`${API}/students`),
+        isAdmin ? axios.get(`${API}/users?tipo=instrutor`) : Promise.resolve({ data: [] }),
+        isAdmin ? axios.get(`${API}/users?tipo=pedagogo`) : Promise.resolve({ data: [] }),
+      ]);
   
         // ✅ COMBINAR INSTRUTORES E PEDAGOGOS para seleção de responsável
         // Garantir que os dados sejam arrays
