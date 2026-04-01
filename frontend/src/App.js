@@ -82,6 +82,7 @@
     BellRing,
     AlertTriangle,
     TriangleAlert,
+    Lock,
   } from "lucide-react";
   
   const BACKEND_URL =
@@ -2172,77 +2173,49 @@ const Dashboard = () => {
                     Não há turmas com chamadas pendentes.
                   </p>
                 </div>
-              ) : (
+                
+                ) : (
                 <div className="space-y-4">
-                  {Array.isArray(notifications) &&
-                    notifications.map((notification, index) => (
-                      <Card
-                        key={index}
-                        className="border-l-4 border-l-orange-500"
-                      >
-                        <CardContent className="p-4">
-                        {notifications.map((notification) => (
-                      <Card key={notification.id} className="mb-4">
-                        <CardContent className="p-4">
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-2">
-                                <h4 className="font-semibold text-gray-900">
-                                  {notification.turma_nome}
-                                </h4>
-                                <Badge
-                                  variant="outline"
-                                  className={getPriorityBadge(notification.prioridade)}
-                                >
-                                  {notification.prioridade === "alta"
-                                    ? "Urgente"
-                                    : notification.prioridade === "media"
-                                      ? "Importante"
-                                      : "Pendente"}
-                                </Badge>
-                              </div>
-                    
-                              <div className="space-y-1 text-sm text-gray-600">
-                                <p><strong>Horário:</strong> {notification.horario || "Não definido"}</p>
-                                <p><strong>Alunos:</strong> {notification.alunos?.length || 0} alunos</p>
-                                <p className={`font-medium ${getPriorityColor(notification.prioridade)}`}>
-                                  <strong>Data pendente:</strong> {formatDate(notification.data_pendente)}
-                                </p>
-                              </div>
+                  {notifications.map((notification) => (
+                    <Card key={notification.turma_id || notification.id} className="border-l-4 border-l-orange-500">
+                      <CardContent className="p-4">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <h4 className="font-semibold text-gray-900 mb-2">
+                              {notification.turma_nome}
+                            </h4>
+                            <div className="space-y-1 text-sm text-gray-600">
+                              <p><strong>Horário:</strong> {notification.horario || "Não definido"}</p>
+                              <p><strong>Alunos:</strong> {notification.alunos?.length || 0} alunos</p>
                             </div>
-                    
-                            <AlertTriangle
-                              className={`h-5 w-5 ${getPriorityColor(notification.prioridade)}`}
-                            />
                           </div>
-                    
-                          <p className="text-xs text-gray-500 mt-3 italic">
-                            {notification.motivo}
-                          </p>
-                        </CardContent>
-                      </Card> 
-                    ))} {/* <--- FECHA O MAP AQUI */}
-                    
-                    </div> {/* <--- FECHA A DIV QUE ENVOLVE OS CARDS */}
-                    )} {/* <--- FECHA O BLOCO CONDICIONAL */}
-                    </div> {/* <--- FECHA A DIV PRINCIPAL DO CONTEÚDO */}
-                    
-                    <div className="flex justify-between items-center pt-4 border-t">
-                      <Button
-                        variant="outline"
-                        onClick={fetchNotifications}
-                        disabled={loading}
-                        size="sm"
-                      >
-                        <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
-                        Atualizar
-                      </Button>
-                      <Button onClick={() => setShowDialog(false)}>Fechar</Button>
-                    </div>
-                    
-                    </DialogContent> {/* <--- FECHA O DIALOG CONTENT */}
-                    </Dialog> {/* <--- FECHA O DIALOG */}
-                    
+                          <AlertTriangle className="h-5 w-5 text-orange-600" />
+                        </div>
+                        <p className="text-xs text-gray-500 mt-3 italic">{notification.status_msg}</p>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-between items-center pt-4 border-t">
+              <Button
+                variant="outline"
+                onClick={fetchNotifications}
+                disabled={loading}
+                size="sm"
+              >
+                <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
+                Atualizar
+              </Button>
+              <Button onClick={() => setShowDialog(false)}>Fechar</Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </>
+    );
+  };    
                       
   // Dashboard Component
   const Dashboard = () => {
@@ -4028,7 +4001,159 @@ const UsuariosManager = () => {
       </div>
     );
   };
-  
+    
+    // 🔍 COMPONENTE: Gerenciador de Alunos dentro da Turma (com busca)
+    const AlunosTurmaManager = ({ selectedTurmaForAlunos, alunos, onAdd, onRemove }) => {
+      const [buscaDisponivel, setBuscaDisponivel] = useState("");
+      const [buscaNaTurma, setBuscaNaTurma] = useState("");
+    
+      const alunosNaTurma = alunos.filter((aluno) =>
+        selectedTurmaForAlunos?.alunos_ids?.includes(aluno.id)
+      );
+    
+      const alunosDisponiveis = alunos.filter(
+        (aluno) =>
+          !selectedTurmaForAlunos?.alunos_ids?.includes(aluno.id) &&
+          aluno.status === "ativo"
+      );
+    
+      const alunosDisponiveisFiltrados = alunosDisponiveis.filter((aluno) => {
+        const termo = buscaDisponivel.toLowerCase().trim();
+        if (!termo) return true;
+        const cpfTermo = buscaDisponivel.replace(/\D/g, "");
+        return (
+          (aluno.nome || "").toLowerCase().includes(termo) ||
+          (aluno.nome_social || "").toLowerCase().includes(termo) ||
+          (cpfTermo.length > 0 && (aluno.cpf || "").replace(/\D/g, "").includes(cpfTermo))
+        );
+      });
+    
+      const alunosNaTurmaFiltrados = alunosNaTurma.filter((aluno) => {
+        const termo = buscaNaTurma.toLowerCase().trim();
+        if (!termo) return true;
+        const cpfTermo = buscaNaTurma.replace(/\D/g, "");
+        return (
+          (aluno.nome || "").toLowerCase().includes(termo) ||
+          (aluno.nome_social || "").toLowerCase().includes(termo) ||
+          (cpfTermo.length > 0 && (aluno.cpf || "").replace(/\D/g, "").includes(cpfTermo))
+        );
+      });
+    
+      return (
+        <div className="space-y-4">
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-lg font-semibold">
+                Alunos Disponíveis ({alunosDisponiveis.length})
+              </h3>
+            </div>
+            <div className="relative mb-2">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Input
+                placeholder="Buscar por nome ou CPF..."
+                value={buscaDisponivel}
+                onChange={(e) => setBuscaDisponivel(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+            <div className="max-h-48 overflow-y-auto border rounded p-2 space-y-1">
+              {alunosDisponiveisFiltrados.length === 0 ? (
+                <p className="text-center text-sm text-gray-400 py-4">
+                  {buscaDisponivel ? "Nenhum aluno encontrado" : "Nenhum aluno disponível"}
+                </p>
+              ) : (
+                alunosDisponiveisFiltrados.map((aluno) => (
+                  <div
+                    key={aluno.id}
+                    className="flex justify-between items-center p-2 hover:bg-gray-50 rounded"
+                  >
+                    <div>
+                      <span className="font-medium text-sm">
+                        {aluno.nome_social || aluno.nome}
+                      </span>
+                      {aluno.nome_social && (
+                        <span className="text-xs text-gray-400 ml-1">({aluno.nome})</span>
+                      )}
+                      <span className="text-xs text-gray-500 ml-2">{aluno.cpf}</span>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onAdd(aluno.id)}
+                      className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      Adicionar
+                    </Button>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+    
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-lg font-semibold">
+                Alunos na Turma ({alunosNaTurma.filter(a => a.status === "ativo").length}
+                /{selectedTurmaForAlunos?.vagas_total || 0})
+              </h3>
+            </div>
+            <div className="relative mb-2">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Input
+                placeholder="Buscar aluno na turma..."
+                value={buscaNaTurma}
+                onChange={(e) => setBuscaNaTurma(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+            <div className="max-h-48 overflow-y-auto border rounded p-2 space-y-1">
+              {alunosNaTurmaFiltrados.length === 0 ? (
+                <p className="text-center text-sm text-gray-400 py-4">
+                  {buscaNaTurma ? "Nenhum aluno encontrado" : "Nenhum aluno na turma ainda"}
+                </p>
+              ) : (
+                alunosNaTurmaFiltrados.map((aluno) => (
+                  <div
+                    key={aluno.id}
+                    className={`flex justify-between items-center p-2 hover:bg-gray-50 rounded ${
+                      aluno.status === "desistente" ? "opacity-60 bg-red-50" : ""
+                    }`}
+                  >
+                    <div>
+                      <span
+                        className={`font-medium text-sm ${
+                          aluno.status === "desistente" ? "line-through text-red-600" : ""
+                        }`}
+                      >
+                        {aluno.nome_social || aluno.nome}
+                      </span>
+                      <span className="text-xs text-gray-500 ml-2">{aluno.cpf}</span>
+                      {aluno.status === "desistente" && (
+                        <span className="text-xs text-red-600 ml-2 font-semibold">
+                          (DESISTENTE)
+                        </span>
+                      )}
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onRemove(aluno.id)}
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                      disabled={aluno.status === "desistente"}
+                    >
+                      <Trash2 className="h-4 w-4 mr-1" />
+                      Remover
+                    </Button>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    };
+                          
   // Turmas Manager Component CORRIGIDO
   const TurmasManager = () => {
     const { user } = useAuth(); // ✅ CORREÇÃO: Adicionar useAuth para acessar user
@@ -4911,122 +5036,31 @@ const UsuariosManager = () => {
                   ))}
               </TableBody>
             </Table>
-          </div>
-        </CardContent>
-  
-        {/* Dialog para gerenciar alunos da turma */}
-        <Dialog open={isAlunoDialogOpen} onOpenChange={setIsAlunoDialogOpen}>
-          <DialogContent className="max-w-4xl">
-            <DialogHeader>
-              <DialogTitle>
-                Gerenciar Alunos - {selectedTurmaForAlunos?.nome}
-              </DialogTitle>
-              <DialogDescription>
-                Adicione ou remova alunos desta turma
-              </DialogDescription>
-            </DialogHeader>
-  
-            <div className="space-y-4">
-              <div>
-                <h3 className="text-lg font-semibold mb-2">Alunos Disponíveis</h3>
-                <div className="max-h-40 overflow-y-auto border rounded p-2">
-                  {alunos
-                    .filter(
-                      (aluno) =>
-                        !selectedTurmaForAlunos?.alunos_ids?.includes(aluno.id) &&
-                        aluno.status === "ativo",
-                    )
-                    .map((aluno) => (
-                      <div
-                        key={aluno.id}
-                        className="flex justify-between items-center p-2 hover:bg-gray-50 rounded"
-                      >
-                        <div>
-                          <span className="font-medium">{aluno.nome}</span>
-                          <span className="text-sm text-gray-500 ml-2">
-                            {aluno.cpf}
-                          </span>
-                        </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleAddAlunoToTurma(aluno.id)}
-                          className="text-green-600 hover:text-green-700"
-                        >
-                          <Plus className="h-4 w-4 mr-1" />
-                          Adicionar
-                        </Button>
-                      </div>
-                    ))}
-                </div>
-              </div>
-  
-              <div>
-                <h3 className="text-lg font-semibold mb-2">
-                  Alunos na Turma (
-                  {
-                    alunos.filter(
-                      (aluno) =>
-                        selectedTurmaForAlunos?.alunos_ids?.includes(aluno.id) &&
-                        aluno.status === "ativo",
-                    ).length
-                  }
-                  /{selectedTurmaForAlunos?.vagas_total || 0})
-                </h3>
-                <div className="max-h-40 overflow-y-auto border rounded p-2">
-                  {alunos
-                    .filter((aluno) =>
-                      selectedTurmaForAlunos?.alunos_ids?.includes(aluno.id),
-                    )
-                    .map((aluno) => (
-                      <div
-                        key={aluno.id}
-                        className={`flex justify-between items-center p-2 hover:bg-gray-50 rounded ${
-                          aluno.status === "desistente"
-                            ? "opacity-60 bg-red-50"
-                            : ""
-                        }`}
-                      >
-                        <div>
-                          <span
-                            className={`font-medium ${
-                              aluno.status === "desistente"
-                                ? "line-through text-red-600"
-                                : ""
-                            }`}
-                          >
-                            {aluno.nome}
-                          </span>
-                          <span className="text-sm text-gray-500 ml-2">
-                            {aluno.cpf}
-                          </span>
-                          {aluno.status === "desistente" && (
-                            <span className="text-xs text-red-600 ml-2 font-semibold">
-                              (DESISTENTE)
-                            </span>
-                          )}
-                        </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleRemoveAlunoFromTurma(aluno.id)}
-                          className="text-red-600 hover:text-red-700"
-                          disabled={aluno.status === "desistente"}
-                        >
-                          <Trash2 className="h-4 w-4 mr-1" />
-                          Remover
-                        </Button>
-                      </div>
-                    ))}
-                </div>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
-      </Card>
-    );
-  };
-  
+          </div></CardContent>
+
+          <Dialog open={isAlunoDialogOpen} onOpenChange={setIsAlunoDialogOpen}>
+            <DialogContent className="max-w-4xl">
+              <DialogHeader>
+                <DialogTitle>
+                  Gerenciar Alunos - {selectedTurmaForAlunos?.nome}
+                </DialogTitle>
+                <DialogDescription>
+                  Adicione ou remova alunos desta turma
+                </DialogDescription>
+              </DialogHeader>
+              <AlunosTurmaManager
+                selectedTurmaForAlunos={selectedTurmaForAlunos}
+                alunos={alunos}
+                onAdd={handleAddAlunoToTurma}
+                onRemove={handleRemoveAlunoFromTurma}
+              />
+            </DialogContent>
+          </Dialog>
+          </Card>
+            );
+          };
+
+                      
   // 📊 RELATÓRIOS DINÂMICOS - Atualizados Automaticamente
   const RelatoriosManager = () => {
     const { user } = useAuth();
