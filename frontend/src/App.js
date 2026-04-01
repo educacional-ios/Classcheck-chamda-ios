@@ -2711,6 +2711,7 @@ const Login = () => {
         const formData = new FormData();
         formData.append("reason_code", justificationForm.reason_code);
         if (justificationForm.observations) {
+          formData.append("reason_text", justificationForm.observations);
           formData.append("observations", justificationForm.observations);
         }
         if (justificationForm.file) {
