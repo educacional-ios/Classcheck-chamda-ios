@@ -933,8 +933,8 @@ async def get_users(
     current_user: UserResponse = Depends(get_current_user)
 ):
     # Admin can see all users, others can see basic user info
-    if current_user.tipo != "admin" and current_user.tipo not in ["instrutor", "pedagogo"]:
-        raise HTTPException(status_code=403, detail="Acesso negado")
+if current_user.tipo != "admin":
+    raise HTTPException(status_code=403, detail="Acesso negado")
     
     query = {}
     if tipo:
@@ -3419,7 +3419,7 @@ async def create_justification(
     student_id: str,
     attendance_id: Optional[str] = Form(None),
     reason_code: str = Form(...),
-    reason_text: Optional[str] = Form(None),
+    observations: Optional[str] = Form(None),
     file: Optional[UploadFile] = File(None),
     current_user: UserResponse = Depends(get_current_user)
 ):
@@ -3500,7 +3500,7 @@ async def create_justification(
         "uploaded_by_name": current_user.nome,
         "uploaded_at": datetime.now(timezone.utc),
         "reason_code": reason_code,
-        "reason_text": reason_text,
+        "reason_text": reason_text or observations,
         "status": "registered",
         "visible_to_student": True,
         **file_meta
@@ -5460,7 +5460,7 @@ async def get_pending_attendances_for_instructor(current_user: UserResponse = De
             
             # 🎯 VERIFICAR APENAS HOJE E ONTEM (máximo 2 dias atrás)
             # Não mostrar chamadas muito antigas para evitar confusão
-            for dias_atras in range(3):  # 0 = hoje, 1 = ontem, 2 = anteontem
+            for dias_atras in range(1, 3):  # 1 = ontem, 2 = anteontem (hoje não aparece)
                 data_verificar = hoje_date - timedelta(days=dias_atras)
                 data_iso = data_verificar.isoformat()
                 
