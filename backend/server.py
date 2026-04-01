@@ -270,6 +270,7 @@ class UserResponse(BaseModel):
     email: str
     tipo: str
     ativo: bool
+    primeiro_acesso: bool = True
     unidade_id: Optional[str] = None
     curso_id: Optional[str] = None
     unidade_nome: Optional[str] = None
@@ -933,8 +934,8 @@ async def get_users(
     current_user: UserResponse = Depends(get_current_user)
 ):
     # Admin can see all users, others can see basic user info
-if current_user.tipo != "admin":
-    raise HTTPException(status_code=403, detail="Acesso negado")
+    if current_user.tipo != "admin":
+        raise HTTPException(status_code=403, detail="Acesso negado")
     
     query = {}
     if tipo:
@@ -3446,6 +3447,7 @@ async def create_justification(
         )
     
     # 3. Validar reason_text quando CUSTOM
+    reason_text = observations
     if reason_code == "CUSTOM" and not reason_text:
         raise HTTPException(
             status_code=400,
@@ -4505,22 +4507,21 @@ async def get_pending_calls(current_user: UserResponse = Depends(get_current_use
     elif current_user.tipo in ["pedagogo", "monitor"]:
         curso_ids = getattr(current_user, 'curso_ids', []) or []
         unidade_ids = getattr(current_user, 'unidade_ids', []) or []
-    
-    # Fallback para campos antigos (compatibilidade)
-    if not curso_ids and getattr(current_user, 'curso_id', None):
-        curso_ids = [current_user.curso_id]
-    if not unidade_ids and getattr(current_user, 'unidade_id', None):
-        unidade_ids = [current_user.unidade_id]
-    
-    if curso_ids:
-        query["curso_id"] = {"$in": curso_ids}
-    if unidade_ids:
-        query["unidade_id"] = {"$in": unidade_ids}
+
+        if not curso_ids and getattr(current_user, 'curso_id', None):
+            curso_ids = [current_user.curso_id]
+        if not unidade_ids and getattr(current_user, 'unidade_id', None):
+            unidade_ids = [current_user.unidade_id]
+
+        if curso_ids:
+            query_turmas["curso_id"] = {"$in": curso_ids}
+        if unidade_ids:
+            query_turmas["unidade_id"] = {"$in": unidade_ids}
     # Admin vê todas as turmas
-    
+                
     turmas = await db.turmas.find(query_turmas).to_list(1000)
     chamadas_pendentes = []
-    
+            
     for turma in turmas:
         try:
         # 📅 Buscar dados do curso para verificar dias de aula
