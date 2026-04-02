@@ -5213,7 +5213,7 @@ async def criar_solicitacao_alteracao(
     aluno_id: str = Form(...),
     aluno_cpf: str = Form(...),
     data_chamada: str = Form(...),
-    status_solicitado: str = Form(...),
+    status_solicitado: str = Form(""),
     motivo: str = Form(...),
     tipo: str = Form("alteracao_presenca"),
     file: Optional[UploadFile] = File(None),
