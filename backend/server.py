@@ -3291,11 +3291,12 @@ async def create_desistente(desistente_create: DesistenteCreate, current_user: U
         
         # Verificar permissões baseadas no tipo de usuário
         tem_permissao = False
-        
+                
         if current_user.tipo == "instrutor":
-            # Instrutor: pode registrar desistência de alunos das suas turmas
             for turma in turmas_aluno:
-                if turma.get("instrutor_id") == current_user.id:
+                instrutor_ids = turma.get("instrutor_ids", [])
+                instrutor_id_legado = turma.get("instrutor_id")
+                if current_user.id in instrutor_ids or current_user.id == instrutor_id_legado:
                     tem_permissao = True
                     break
                     
