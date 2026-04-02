@@ -6411,8 +6411,14 @@ const fetchAlunos = async () => {
           motivo_codigo: selectedDropoutReason === "outro" ? "outro" : selectedDropoutReason,
           motivo_descricao: descricaoFinal,
           data_desistencia: new Date().toISOString().split("T")[0],
-          turma_id: selectedAluno.turma_id || (selectedAluno.turmas_ids?.[0] ?? null),
-        });
+          turma_id: (() => {
+            const turmaEncontrada = turmas.find(t =>
+              Array.isArray(t.alunos_ids) &&
+              t.alunos_ids.map(String).includes(String(selectedAluno.id))
+            );
+            return turmaEncontrada?.id || selectedAluno.turma_id || (selectedAluno.turmas_ids?.[0] ?? null);
+          })(),
+          });
   
         await axios.put(`${API}/students/${selectedAluno.id}`, {
           ...selectedAluno,
@@ -6918,10 +6924,19 @@ const fetchAlunos = async () => {
     buscaOk = nomeBate || nomeSocialBate || cpfBate;
   }
 
-  const cursoOk = filtroCurso === "todos" || aluno.curso_id === filtroCurso;
-  const turmaOk = filtroTurma === "todos" || 
-  (Array.isArray(aluno.turmas_ids) && aluno.turmas_ids.includes(filtroTurma)) ||
-  aluno.turma_id === filtroTurma;
+const cursoOk = filtroCurso === "todos" ||
+    turmas.some(t =>
+      String(t.curso_id) === String(filtroCurso) &&
+      Array.isArray(t.alunos_ids) &&
+      t.alunos_ids.map(String).includes(String(aluno.id))
+    );
+
+  const turmaOk = filtroTurma === "todos" ||
+    turmas.some(t =>
+      String(t.id) === String(filtroTurma) &&
+      Array.isArray(t.alunos_ids) &&
+      t.alunos_ids.map(String).includes(String(aluno.id))
+    );
 
   return buscaOk && cursoOk && turmaOk;
 })
