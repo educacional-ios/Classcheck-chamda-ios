@@ -145,11 +145,12 @@
     async (error) => {
       const config = error.config;
       if (!config || !config.retry) config.retry = 0;
-  
+        
       if (
-        config.retry < 3 &&
-        (error.code === "ECONNABORTED" || error.name === "AxiosError")
-      ) {
+              config.retry < 3 &&
+              (error.code === "ECONNABORTED" || error.name === "AxiosError") &&
+              !error.response
+            ) {
         config.retry += 1;
         console.log(`🔄 Tentativa ${config.retry}/3 para ${config.url}`);
         return axios(config);
@@ -1056,13 +1057,19 @@ const AttendanceChangeRequestModal = ({ open, onClose }) => {
       });
       setSelectedFile(null);
       onClose();
-    } catch (err) {
-      toast({
-        title: "Erro ao enviar solicitação",
-        description: err.response?.data?.detail || "Tente novamente",
-        variant: "destructive",
-      });
-    } finally {
+      } catch (err) {
+            const detail = err.response?.data?.detail;
+            toast({
+              title: "Erro ao enviar solicitação",
+              description: typeof detail === "string"
+                ? detail
+                : Array.isArray(detail)
+                ? detail.map(d => d.msg || JSON.stringify(d)).join(", ")
+                : "Tente novamente",
+              variant: "destructive",
+            });
+          }
+    finally {
       setSaving(false);
     }
   };
