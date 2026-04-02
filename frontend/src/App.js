@@ -1011,12 +1011,13 @@ const AttendanceChangeRequestModal = ({ open, onClose }) => {
 
   const handleSubmit = async () => {
     if (
-      !form.turma_id ||
-      !form.aluno_id ||
-      !form.data_chamada ||
-      form.status_solicitado === "" ||
-      !form.motivo.trim()
-    ) {
+if (
+  !form.turma_id ||
+  !form.aluno_id ||
+  !form.data_chamada ||
+  (form.tipo === "alteracao_presenca" && form.status_solicitado === "") ||
+  !form.motivo.trim()
+) {
       toast({
         title: "Preencha todos os campos obrigatórios",
         variant: "destructive",
@@ -4467,7 +4468,7 @@ const UsuariosManager = () => {
         }
       }
     };
-  
+      
     const handleAddAlunoToTurma = async (alunoId) => {
       try {
         await axios.put(
@@ -4477,7 +4478,12 @@ const UsuariosManager = () => {
           title: "Aluno adicionado com sucesso!",
           description: "O aluno foi adicionado à turma.",
         });
-        fetchData(); // Atualizar dados
+        // Atualizar selectedTurmaForAlunos imediatamente para refletir a mudança
+        setSelectedTurmaForAlunos((prev) => ({
+          ...prev,
+          alunos_ids: [...(prev.alunos_ids || []), alunoId],
+        }));
+        fetchData();
       } catch (error) {
         toast({
           title: "Erro ao adicionar aluno",
@@ -4486,7 +4492,7 @@ const UsuariosManager = () => {
         });
       }
     };
-  
+    
     const handleRemoveAlunoFromTurma = async (alunoId) => {
       try {
         await axios.delete(
@@ -4496,7 +4502,12 @@ const UsuariosManager = () => {
           title: "Aluno removido com sucesso!",
           description: "O aluno foi removido da turma.",
         });
-        fetchData(); // Atualizar dados
+        // Atualizar selectedTurmaForAlunos imediatamente para refletir a mudança
+        setSelectedTurmaForAlunos((prev) => ({
+          ...prev,
+          alunos_ids: (prev.alunos_ids || []).filter((id) => id !== alunoId),
+        }));
+        fetchData();
       } catch (error) {
         toast({
           title: "Erro ao remover aluno",
@@ -4504,8 +4515,7 @@ const UsuariosManager = () => {
           variant: "destructive",
         });
       }
-    };
-  
+    };  
     const turmasFiltradas = turmas.filter((turma) => {
       const nomeOk = turma.nome.toLowerCase().includes(filtroNome.toLowerCase());
       const tipoOk = filtroTipo === "todos" || turma.tipo_turma === filtroTipo;
@@ -6402,6 +6412,7 @@ const fetchAlunos = async () => {
           motivo_codigo: selectedDropoutReason === "outro" ? "outro" : selectedDropoutReason,
           motivo_descricao: descricaoFinal,
           data_desistencia: new Date().toISOString().split("T")[0],
+          turma_id: selectedAluno.turma_id || (selectedAluno.turmas_ids?.[0] ?? null),
         });
   
         await axios.put(`${API}/students/${selectedAluno.id}`, {
