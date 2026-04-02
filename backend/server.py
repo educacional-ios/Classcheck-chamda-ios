@@ -2128,7 +2128,9 @@ async def bulk_upload_students(
                             can_add_to_turma = True
                         elif current_user.tipo == "instrutor":
                             # Instrutor: apenas suas turmas
-                            if turma["instrutor_id"] == current_user.id:
+                            instrutor_ids_turma = turma.get("instrutor_ids", [])
+                            instrutor_id_legado = turma.get("instrutor_id")
+                            if current_user.id in instrutor_ids_turma or current_user.id == instrutor_id_legado:
                                 can_add_to_turma = True
                         elif current_user.tipo == "pedagogo":
                             # Pedagogo: turmas da sua unidade
@@ -2630,8 +2632,24 @@ async def add_aluno_to_turma(turma_id: str, aluno_id: str, current_user: UserRes
 
 @api_router.delete("/classes/{turma_id}/students/{aluno_id}")
 async def remove_aluno_from_turma(turma_id: str, aluno_id: str, current_user: UserResponse = Depends(get_current_user)):
-    check_admin_permission(current_user)
-    
+    turma = await db.turmas.find_one({"id": turma_id})
+    if not turma:
+        raise HTTPException(status_code=404, detail="Turma não encontrada")
+
+    if current_user.tipo == "admin":
+        pass
+    elif current_user.tipo == "instrutor":
+        instrutor_ids = turma.get("instrutor_ids", [])
+        instrutor_id_legado = turma.get("instrutor_id")
+        if current_user.id not in instrutor_ids and current_user.id != instrutor_id_legado:
+            raise HTTPException(status_code=403, detail="Instrutor só pode gerenciar suas próprias turmas")
+    elif current_user.tipo in ["pedagogo", "monitor"]:
+        if (getattr(current_user, 'curso_id', None) and turma["curso_id"] != getattr(current_user, 'curso_id', None)) or \
+           (getattr(current_user, 'unidade_id', None) and turma["unidade_id"] != getattr(current_user, 'unidade_id', None)):
+            raise HTTPException(status_code=403, detail="Acesso negado: turma fora do seu curso/unidade")
+    else:
+        raise HTTPException(status_code=403, detail="Acesso negado")
+
     await db.turmas.update_one(
         {"id": turma_id},
         {
@@ -2639,9 +2657,8 @@ async def remove_aluno_from_turma(turma_id: str, aluno_id: str, current_user: Us
             "$inc": {"vagas_ocupadas": -1}
         }
     )
-    
-    return {"message": "Aluno removido da turma"}
 
+    return {"message": "Aluno removido da turma"}
 @api_router.delete("/classes/{turma_id}")
 async def delete_turma(turma_id: str, current_user: UserResponse = Depends(get_current_user)):
     """🗑️ DELETAR TURMA - Apenas Admin pode deletar turmas"""
@@ -2967,10 +2984,13 @@ async def upload_atestado(
         tem_permissao = False
         
         if current_user.tipo == "instrutor":
-            # Instrutor: só pode anexar atestado de alunos das suas turmas
             turmas_instrutor = await db.turmas.find({
-                "instrutor_id": current_user.id,
-                "alunos_ids": aluno_id
+                "$or": [
+                    {"instrutor_id": current_user.id},
+                    {"instrutor_ids": current_user.id}
+                ],
+                "alunos_ids": aluno_id,
+                "ativo": True
             }).to_list(10)
             tem_permissao = len(turmas_instrutor) > 0
             
@@ -3102,25 +3122,29 @@ async def download_atestado(
     # 🔒 VALIDAÇÃO DE PERMISSÕES (mesmo padrão)
     if current_user.tipo not in ["admin", "instrutor", "pedagogo"]:
         raise HTTPException(status_code=403, detail="Permissão negada")
-    
+
     if current_user.tipo != "admin":
         tem_permissao = False
         aluno_id = atestado["aluno_id"]
-        
+
         if current_user.tipo == "instrutor":
             turmas_instrutor = await db.turmas.find({
-                "instrutor_id": current_user.id,
-                "alunos_ids": aluno_id
+                "$or": [
+                    {"instrutor_id": current_user.id},
+                    {"instrutor_ids": current_user.id}
+                ],
+                "alunos_ids": aluno_id,
+                "ativo": True
             }).to_list(10)
             tem_permissao = len(turmas_instrutor) > 0
-            
+
         elif current_user.tipo == "pedagogo":
             turmas_unidade = await db.turmas.find({
                 "unidade_id": getattr(current_user, 'unidade_id', None),
                 "alunos_ids": aluno_id
             }).to_list(10)
             tem_permissao = len(turmas_unidade) > 0
-        
+
         if not tem_permissao:
             raise HTTPException(status_code=403, detail="Sem permissão para baixar este atestado")
     
@@ -3735,7 +3759,10 @@ async def get_attendance_report(
     if current_user.tipo == "instrutor":
         # ✅ Instrutor só pode ver suas turmas REGULARES
         turmas_instrutor = await db.turmas.find({
-            "instrutor_id": current_user.id,
+            "$or": [
+                {"instrutor_id": current_user.id},
+                {"instrutor_ids": current_user.id}
+            ],
             "tipo_turma": "regular"
         }).to_list(1000)
         turmas_ids = [turma["id"] for turma in turmas_instrutor]
@@ -3860,7 +3887,10 @@ async def generate_csv_background(
         # Apply user permissions (simplified for brevity)
         if current_user.tipo == "instrutor":
             turmas_instrutor = await db.turmas.find({
-                "instrutor_id": current_user.id,
+                "$or": [
+                    {"instrutor_id": current_user.id},
+                    {"instrutor_ids": current_user.id}
+                ],
                 "tipo_turma": "regular"
             }).to_list(1000)
             turmas_ids = [turma["id"] for turma in turmas_instrutor]
@@ -4301,9 +4331,12 @@ async def get_student_frequency_report(
     
     if current_user.tipo == "instrutor":
         turmas_instrutor = await db.turmas.find({
-            "instrutor_id": current_user.id,
-            "tipo_turma": "regular"
-        }).to_list(1000)
+                    "$or": [
+                        {"instrutor_id": current_user.id},
+                        {"instrutor_ids": current_user.id}
+                    ],
+                    "tipo_turma": "regular"
+                }).to_list(1000)
         turmas_ids = [turma["id"] for turma in turmas_instrutor]
         
         if turmas_ids:
