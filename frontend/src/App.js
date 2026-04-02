@@ -1011,7 +1011,6 @@ const AttendanceChangeRequestModal = ({ open, onClose }) => {
 
   const handleSubmit = async () => {
     if (
-if (
   !form.turma_id ||
   !form.aluno_id ||
   !form.data_chamada ||
