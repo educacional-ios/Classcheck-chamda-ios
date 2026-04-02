@@ -1260,7 +1260,8 @@ const AdminChangeRequestsPanel = () => {
         : `${API}/attendance-change-requests`;
       const res = await axios.get(url);
       setRequests(Array.isArray(res.data) ? res.data : []);
-    } catch {
+    } catch (err) {
+      console.error("Erro ao buscar solicitações:", err?.response?.data || err);      
       setRequests([]);
     } finally {
       setLoading(false);
@@ -1288,7 +1289,9 @@ const AdminChangeRequestsPanel = () => {
     } catch (err) {
       toast({
         title: "Erro ao responder",
-        description: err.response?.data?.detail || "Tente novamente",
+        description: typeof err.response?.data?.detail === "string"
+        ? err.response.data.detail
+        : "Tente novamente",
         variant: "destructive",
       });
     }
