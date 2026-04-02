@@ -3038,6 +3038,26 @@ async def upload_atestado(
         }
         
         await db.atestados.insert_one(atestado_data)
+        # Criar registro espelho em justifications para aparecer no perfil do aluno
+        justification_mirror = {
+            "id": str(uuid.uuid4()),
+            "student_id": aluno_id,
+            "attendance_id": None,
+            "uploaded_by": current_user.id,
+            "uploaded_by_name": current_user.nome,
+            "uploaded_at": datetime.now(timezone.utc),
+            "reason_code": "HEALTH_PROBLEMS",
+            "reason_text": observacao or "Atestado médico anexado",
+            "file_id": str(file_id),
+            "file_name": file.filename,
+            "file_mime": file.content_type,
+            "file_size": len(contents),
+            "status": "registered",
+            "visible_to_student": True,
+            "atestado_ref_id": atestado_data["id"],  # referência ao atestado original
+            "created_at": datetime.now(timezone.utc)
+        }
+        await db.justifications.insert_one(justification_mirror)
         
         return {
             "id": atestado_data["id"],
