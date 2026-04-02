@@ -1032,7 +1032,7 @@ const AttendanceChangeRequestModal = ({ open, onClose }) => {
       fd.append("aluno_id", form.aluno_id);
       fd.append("aluno_cpf", form.aluno_cpf);
       fd.append("data_chamada", form.data_chamada);
-      fd.append("status_solicitado", form.status_solicitado);
+      fd.append("status_solicitado", form.tipo === "justificativa_posterior" ? "" : form.status_solicitado);
       fd.append("motivo", form.motivo);
       fd.append("tipo", form.tipo);
       if (selectedFile) fd.append("file", selectedFile);
