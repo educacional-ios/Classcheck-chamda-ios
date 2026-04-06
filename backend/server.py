@@ -2136,9 +2136,20 @@ async def bulk_upload_students(
                             # Pedagogo: turmas da sua unidade
                             if turma.get("unidade_id") == getattr(current_user, 'unidade_id', None):
                                 can_add_to_turma = True
-                        
                         if can_add_to_turma:
-                            # Adicionar aluno à turma (evita duplicatas)
+                            # Verificar se aluno já está em outra turma e removê-lo primeiro
+                            turma_atual = await db.turmas.find_one({
+                                "alunos_ids": aluno_id_to_use,
+                                "ativo": True
+                            })
+                            if turma_atual and turma_atual["id"] != turma_id:
+                                await db.turmas.update_one(
+                                    {"id": turma_atual["id"]},
+                                    {"$pull": {"alunos_ids": aluno_id_to_use}}
+                                )
+                                print(f"🔄 Aluno {aluno_id_to_use} transferido de '{turma_atual.get('nome')}' para nova turma")
+
+                            # Adicionar aluno à nova turma (evita duplicatas)
                             await db.turmas.update_one(
                                 {"id": turma_id},
                                 {"$addToSet": {"alunos_ids": aluno_id_to_use}}
@@ -3552,19 +3563,36 @@ async def create_justification(
         "visible_to_student": True,
         **file_meta
     }
-    
     # 6. Salvar no banco
     await db.justifications.insert_one(justification_data)
-    
+
+    # 6.1 Se tem arquivo e reason_code é HEALTH_PROBLEMS, criar espelho em atestados
+    if file_meta and reason_code == "HEALTH_PROBLEMS":
+        aluno = await db.alunos.find_one({"id": student_id})
+        atestado_espelho = {
+            "id": str(uuid.uuid4()),
+            "aluno_id": student_id,
+            "aluno_nome": aluno.get("nome", "") if aluno else "",
+            "file_id": file_meta["file_id"],
+            "filename": file_meta["file_name"],
+            "content_type": file_meta["file_mime"],
+            "observacao": reason_text or "",
+            "data_envio": date.today().isoformat(),
+            "uploaded_by": current_user.id,
+            "uploaded_by_nome": current_user.nome,
+            "justification_ref_id": justification_data["id"],
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }
+        await db.atestados.insert_one(atestado_espelho)
+
     # 7. Se vinculado a uma chamada, marcar como justificado
     if attendance_id:
         await db.chamadas.update_one(
             {"id": attendance_id, f"presencas.{student_id}": {"$exists": True}},
             {"$set": {f"presencas.{student_id}.justificado": True, f"presencas.{student_id}.justification_id": justification_data["id"]}}
         )
-    
-    return {"ok": True, "justification_id": justification_data["id"], "message": "Justificativa criada com sucesso"}
 
+    return {"ok": True, "justification_id": justification_data["id"], "message": "Justificativa criada com sucesso"}
 @api_router.get("/students/{student_id}/justifications", response_model=List[JustificationResponse])
 async def get_student_justifications(
     student_id: str,
@@ -4005,16 +4033,24 @@ async def generate_simple_csv_stream(chamadas):
     writer.writerow([
         "Aluno", "CPF", "Matricula", "Turma", "Tipo_Turma", "Curso", "Data", 
         "Hora_Inicio", "Hora_Fim", "Status", "Hora_Registro", 
-        "Responsavel_Turma", "Tipo_Responsavel", "Responsavel_Chamada", "Unidade", "Observacoes"
+        "Responsavel_Turma", "Tipo_Responsavel", "Responsavel_Chamada", 
+        "Unidade", "Observacoes", "Total_Presencas", "Total_Faltas", "Falta_Justificada"
     ])
     yield buffer.getvalue()
     buffer.seek(0)
     buffer.truncate(0)
-    
     # Stream data row by row to prevent memory buildup
     processed = 0
     MAX_SAFE_RECORDS = 10000  # Higher limit since we're streaming
-    
+
+    # ✅ CRIAR ÍNDICE DE CHAMADAS POR TURMA (necessário para calcular totais por aluno)
+    chamadas_por_turma = {}
+    for chamada in chamadas:
+        tid = chamada.get("turma_id", "")
+        if tid not in chamadas_por_turma:
+            chamadas_por_turma[tid] = []
+        chamadas_por_turma[tid].append(chamada)
+
     # Process data with STREAMING (sends data as it processes)
     for chamada in chamadas:
         # Safety limit (but much higher since streaming)
@@ -4098,24 +4134,48 @@ async def generate_simple_csv_stream(chamadas):
                         if primeiro_resp and primeiro_resp.get("tipo") == "pedagogo":
                             tipo_responsavel_label = "Pedagogo"
                     
-                    # Write row to buffer and stream immediately
+                    # Calcular total de presenças e faltas do aluno em TODAS as chamadas desta turma
+                    total_presencas_aluno = 0
+                    total_faltas_aluno = 0
+                    falta_justificada = "Não"
+                    
+                    for c in chamadas_por_turma.get(turma.get("id", ""), []):
+                        for r in c.get("records", []):
+                            if r.get("aluno_id") == aluno_id:
+                                if r.get("presente", False):
+                                    total_presencas_aluno += 1
+                                else:
+                                    total_faltas_aluno += 1
+                    
+                    # Verificar se esta falta específica tem justificativa
+                    if not presente:
+                        justificativa_existe = await db.justifications.find_one({
+                            "student_id": aluno_id
+                        })
+                        if justificativa_existe or record.get("justificativa"):
+                            falta_justificada = "Sim"
+                    
                     writer.writerow([
-                        aluno.get("nome", ""),
-                        aluno.get("cpf", ""),
-                        aluno.get("matricula", aluno.get("id", "")),
-                        turma.get("nome", ""),
-                        tipo_turma_label,
-                        curso.get("nome", "") if curso else "",
-                        data_chamada,
-                        hora_inicio,
-                        hora_fim,
-                        status,
-                        hora_registro,
-                        responsavel_nome,
-                        tipo_responsavel_label,
-                        responsavel_chamada_nome,
-                        unidade.get("nome", "") if unidade else "",
-                        observacoes_texto
+                        aluno.get("nome", ""),                          # Aluno
+                        aluno.get("cpf", ""),                           # CPF
+                        aluno.get("id", ""),                            # Matricula (usa ID como matrícula)
+                        turma.get("nome", ""),                          # Turma
+                        "Extensão" if turma.get("tipo_turma") == "extensao" else "Regular",  # Tipo_Turma
+                        curso.get("nome", "") if curso else "",         # Curso
+                        data_chamada,                                   # Data
+                        turma.get("horario_inicio", ""),                # Hora_Inicio
+                        turma.get("horario_fim", ""),                   # Hora_Fim
+                        "Presente" if presente else "Ausente",          # Status
+                        record.get("hora_registro", ""),                # Hora_Registro
+                        responsavel_nome,                               # Responsavel_Turma (instrutor da turma)
+                        tipo_responsavel_label,                         # Tipo_Responsavel
+                        responsavel_chamada_nome,                       # Responsavel_Chamada (quem fez a chamada)
+                        unidade.get("nome", "") if unidade else "",     # Unidade
+                        observacoes_texto,                              # Observacoes
+                        total_presencas_aluno,                          # Total_Presencas
+                        total_faltas_aluno,                             # Total_Faltas
+                        falta_justificada                               # Falta_Justificada
+                                            
                     ])
                     
                     # 🚨 STREAM THE ROW IMMEDIATELY (prevents timeout!)
