@@ -4523,11 +4523,12 @@ async def get_student_frequency_report(
         output = StringIO()
         writer = csv.writer(output)
         
-        # Cabeçalhos conforme a imagem
+        # Cabeçalhos
         writer.writerow([
-            "Nome do Aluno", "CPF", "Total de Chamadas", "Presencas", "Faltas", 
-            "% Presença (Preciso)", "Classificação de Risco", "Status do Aluno", 
-            "Data de Nascimento", "Email"
+            "Nome do Aluno", "CPF", "Unidade", "Curso", "Turma",
+            "Total de Chamadas", "Presenças", "Faltas",
+            "% Presença", "Classificação de Risco",
+            "Status do Aluno", "Data de Nascimento", "Email"
         ])
         
         # Processar cada aluno
@@ -4562,11 +4563,30 @@ async def get_student_frequency_report(
                     data_nasc_str = "N/A"
                 
                 # Escrever linha
+                # Buscar turma, unidade e curso do aluno
+                turma_do_aluno = await db.turmas.find_one({"alunos_ids": aluno_id})
+                unidade_nome_csv = "N/A"
+                curso_nome_csv   = "N/A"
+                turma_nome_csv   = "N/A"
+                if turma_do_aluno:
+                    turma_nome_csv = turma_do_aluno.get("nome", "N/A")
+                    if turma_do_aluno.get("unidade_id"):
+                        u = await db.unidades.find_one({"id": turma_do_aluno["unidade_id"]})
+                        if u:
+                            unidade_nome_csv = u.get("nome", "N/A")
+                    if turma_do_aluno.get("curso_id"):
+                        c = await db.cursos.find_one({"id": turma_do_aluno["curso_id"]})
+                        if c:
+                            curso_nome_csv = c.get("nome", "N/A")
+
                 writer.writerow([
                     aluno.get("nome", ""),
                     aluno.get("cpf", ""),
-                    stats["total_chamadas"],
-                    stats["total_presencas"],
+                    unidade_nome_csv,
+                    curso_nome_csv,
+                    turma_nome_csv,
+                    total_chamadas,
+                    total_presencas,
                     stats["total_faltas"],
                     f"{percentual:.2f}%",
                     risco,
