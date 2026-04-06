@@ -5325,136 +5325,77 @@ const fetchDadosBasicos = async () => {
     };
   
     // 📊 FASE 4: CSV Export Aprimorado com Dados Precisos
-    const downloadFrequencyReport = async () => {
-      try {
-        console.log("🚀 Iniciando download CSV com Fase 4 - Dados Precisos");
-  
-        // 🎯 TENTATIVA 1: Backend com filtros aplicados
-        let backendResponse = null;
-        try {
-          let url = `${API}/reports/attendance?export_csv=true`;
-  
-          if (
-            user?.tipo === "admin" &&
-            (filtros.data_inicio ||
-              filtros.data_fim ||
-              (filtros.unidade_id && filtros.unidade_id !== "all") ||
-              (filtros.curso_id && filtros.curso_id !== "all") ||
-              (filtros.turma_id && filtros.turma_id !== "all"))
-          ) {
-            const params = new URLSearchParams();
-            params.append("export_csv", "true");
-            if (filtros.data_inicio)
-              params.append("data_inicio", filtros.data_inicio);
-            if (filtros.data_fim) params.append("data_fim", filtros.data_fim);
-            if (filtros.unidade_id && filtros.unidade_id !== "all")
-              params.append("unidade_id", filtros.unidade_id);
-            if (filtros.curso_id && filtros.curso_id !== "all")
-              params.append("curso_id", filtros.curso_id);
-            if (filtros.turma_id && filtros.turma_id !== "all")
-              params.append("turma_id", filtros.turma_id);
-            url = `${API}/reports/attendance?${params.toString()}`;
-          }
-  
-          backendResponse = await axios.get(url);
-        } catch (backendError) {
-          console.log(
-            "⚠️ Backend CSV falhou, gerando localmente com Fase 4:",
-            backendError.message,
-          );
-        }
-  
-        let csvData;
-        let dataSource;
-  
-        // 🎯 USAR DADOS DO BACKEND SE DISPONÍVEL
-        if (backendResponse && backendResponse.data?.csv_data) {
-          csvData = backendResponse.data.csv_data;
-          dataSource = "backend";
-          console.log("✅ Usando dados do backend");
-        }
-        // 🎯 FALLBACK: GERAR CSV LOCALMENTE COM FASE 3
-        else {
-          console.log("🔄 Gerando CSV localmente com cálculos Fase 3");
-  
-          if (!alunos || !alunos.length) {
+              const downloadFrequencyReport = async () => {
+          try {
             toast({
-              title: "⚠️ Dados Indisponíveis",
-              description: "Aguarde o carregamento dos dados ou tente novamente",
+              title: "⏳ Gerando relatório...",
+              description: "Buscando dados reais do banco de dados.",
+            });
+        
+            const params = new URLSearchParams({ export_csv: "true" });
+        
+            if (user?.tipo === "admin") {
+              if (filtros.data_inicio) params.append("data_inicio", filtros.data_inicio);
+              if (filtros.data_fim)    params.append("data_fim",    filtros.data_fim);
+              if (filtros.unidade_id && filtros.unidade_id !== "all")
+                params.append("unidade_id", filtros.unidade_id);
+              if (filtros.curso_id && filtros.curso_id !== "all")
+                params.append("curso_id", filtros.curso_id);
+              if (filtros.turma_id && filtros.turma_id !== "all")
+                params.append("turma_id", filtros.turma_id);
+            }
+        
+            const response = await axios.get(
+              `${API}/reports/student-frequency?${params.toString()}`,
+              { timeout: 120000 }
+            );
+        
+            const csvData = response.data?.csv_data;
+        
+            if (!csvData || csvData.trim().length === 0) {
+              toast({
+                title: "⚠️ Sem dados para exportar",
+                description: "Nenhuma chamada registrada ainda. Realize chamadas primeiro.",
+                variant: "destructive",
+              });
+              return;
+            }
+        
+            const blob = new Blob(["\ufeff" + csvData], { type: "text/csv;charset=utf-8;" });
+            const link = document.createElement("a");
+            const objectUrl = URL.createObjectURL(blob);
+        
+            let fileName = `relatorio_frequencia_${new Date().toISOString().split("T")[0]}`;
+            if (filtros.data_inicio && filtros.data_fim)
+              fileName += `_${filtros.data_inicio}_a_${filtros.data_fim}`;
+            if (filtros.curso_id && filtros.curso_id !== "all")
+              fileName += "_CURSO-FILTRADO";
+            if (filtros.unidade_id && filtros.unidade_id !== "all")
+              fileName += "_UNIDADE-FILTRADA";
+            fileName += ".csv";
+        
+            link.setAttribute("href", objectUrl);
+            link.setAttribute("download", fileName);
+            link.style.visibility = "hidden";
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(objectUrl);
+        
+            toast({
+              title: "✅ Relatório exportado!",
+              description: "Presenças, faltas, unidade e curso incluídos corretamente.",
+            });
+        
+          } catch (error) {
+            console.error("Erro ao exportar:", error);
+            toast({
+              title: "❌ Erro ao exportar",
+              description: error.response?.data?.detail || "Verifique sua conexão e tente novamente.",
               variant: "destructive",
             });
-            return;
           }
-  
-          // Usar sistema de cálculos precisos da Fase 3
-          const estatisticasPrecisas = calcularEstatisticasPrecisas(
-            alunos,
-            chamadas,
-          );
-  
-          // Gerar CSV com dados precisos
-          csvData = gerarCSVComDadosPrecisos(estatisticasPrecisas, filtros);
-          dataSource = "local-fase3";
-        }
-  
-        // 📁 CRIAR E BAIXAR ARQUIVO CSV APRIMORADO
-        const blob = new Blob([csvData], { type: "text/csv;charset=utf-8;" });
-        const link = document.createElement("a");
-  
-        if (link.download !== undefined) {
-          const url = URL.createObjectURL(blob);
-          link.setAttribute("href", url);
-  
-          // 📋 Nome do arquivo com indicadores de qualidade
-          let fileName = `relatorio_frequencia_${
-            new Date().toISOString().split("T")[0]
-          }`;
-  
-          // Adicionar indicador de fonte de dados
-          if (dataSource === "local-fase3") {
-            fileName += "_PRECISAO-FASE3";
-          }
-  
-          // Adicionar filtros aplicados
-          if (filtros.data_inicio && filtros.data_fim) {
-            fileName += `_${filtros.data_inicio}_a_${filtros.data_fim}`;
-          }
-          if (filtros.curso_id && filtros.curso_id !== "all") {
-            fileName += "_CURSO-FILTRADO";
-          }
-          if (filtros.unidade_id && filtros.unidade_id !== "all") {
-            fileName += "_UNIDADE-FILTRADA";
-          }
-  
-          fileName += ".csv";
-  
-          link.setAttribute("download", fileName);
-          link.style.visibility = "hidden";
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-        }
-  
-        // 🎉 FEEDBACK COM DETALHES DA FASE 4
-        toast({
-          title: "📊 Relatório Fase 4 Exportado!",
-          description: `${
-            dataSource === "backend"
-              ? "Dados Backend"
-              : "Cálculos Locais Precisos"
-          } | ${
-            stats.detalhes_por_aluno?.length || alunos.length
-          } alunos | Arquivo baixado com sucesso`,
-        });
-      } catch (error) {
-        console.error("Error downloading report:", error);
-        toast({
-          title: "Erro ao exportar relatório",
-          description: "Tente novamente em alguns instantes.",
-          variant: "destructive",
-        });
-      }
-    };
+        };
   
     // 🔍 Função para aplicar filtros
     const aplicarFiltros = () => {
