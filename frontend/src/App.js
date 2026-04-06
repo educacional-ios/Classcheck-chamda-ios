@@ -4209,8 +4209,8 @@ const UsuariosManager = () => {
         axios.get(`${API}/units`),
         axios.get(`${API}/courses`),
         axios.get(`${API}/students`),
-        isAdmin ? axios.get(`${API}/users?tipo=instrutor`) : Promise.resolve({ data: [] }),
-        isAdmin ? axios.get(`${API}/users?tipo=pedagogo`) : Promise.resolve({ data: [] }),
+        axios.get(`${API}/users?tipo=instrutor`).catch(() => ({ data: [] })),
+        axios.get(`${API}/users?tipo=pedagogo`).catch(() => ({ data: [] })),
       ]);
   
         // ✅ COMBINAR INSTRUTORES E PEDAGOGOS para seleção de responsável
@@ -6068,6 +6068,222 @@ const fetchDadosBasicos = async () => {
       </>
     );
   };
+
+  // ============================================================
+// 🔄 COMPONENTE: Transferir aluno de turma
+// ============================================================
+const TransferirTurmaPanel = ({ aluno, turmas, onTransferido }) => {
+  const { toast } = useToast();
+  const [novaTurmaId, setNovaTurmaId] = useState("");
+  const [transferindo, setTransferindo] = useState(false);
+
+  const turmaAtual = turmas.find(t =>
+    Array.isArray(t.alunos_ids) &&
+    t.alunos_ids.map(String).includes(String(aluno?.id))
+  );
+
+  const turmasDisponiveis = turmas.filter(t =>
+    t.id !== turmaAtual?.id && t.ativo !== false
+  );
+
+  const handleTransferir = async () => {
+    if (!novaTurmaId) return;
+
+    if (novaTurmaId === "sem_turma") {
+      // Só remove da turma atual
+      if (!turmaAtual) return;
+      setTransferindo(true);
+      try {
+        await axios.delete(`${API}/classes/${turmaAtual.id}/students/${aluno.id}`);
+        toast({ title: "Aluno removido da turma com sucesso!" });
+        setNovaTurmaId("");
+        onTransferido();
+      } catch (error) {
+        toast({
+          title: "Erro ao remover da turma",
+          description: error.response?.data?.detail || "Tente novamente",
+          variant: "destructive",
+        });
+      } finally {
+        setTransferindo(false);
+      }
+      return;
+    }
+
+    setTransferindo(true);
+    try {
+      if (turmaAtual) {
+        await axios.delete(`${API}/classes/${turmaAtual.id}/students/${aluno.id}`);
+      }
+      await axios.put(`${API}/classes/${novaTurmaId}/students/${aluno.id}`);
+      toast({
+        title: "✅ Transferência realizada!",
+        description: `${aluno.nome} foi transferido com sucesso.`,
+      });
+      setNovaTurmaId("");
+      onTransferido();
+    } catch (error) {
+      toast({
+        title: "Erro na transferência",
+        description: error.response?.data?.detail || "Tente novamente",
+        variant: "destructive",
+      });
+    } finally {
+      setTransferindo(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      {turmaAtual ? (
+        <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <p className="text-sm font-medium text-blue-800 mb-2">Situação atual</p>
+          <div className="grid grid-cols-2 gap-3 text-sm">
+            <div>
+              <p className="text-gray-500 text-xs">Turma</p>
+              <p className="font-medium">{turmaAtual.nome}</p>
+            </div>
+            <div>
+              <p className="text-gray-500 text-xs">Ciclo</p>
+              <p className="font-medium">{turmaAtual.ciclo || "—"}</p>
+            </div>
+            <div>
+              <p className="text-gray-500 text-xs">Horário</p>
+              <p className="font-medium">{turmaAtual.horario_inicio} – {turmaAtual.horario_fim}</p>
+            </div>
+            <div>
+              <p className="text-gray-500 text-xs">Vagas ocupadas</p>
+              <p className="font-medium">{turmaAtual.alunos_ids?.length || 0}/{turmaAtual.vagas_total}</p>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
+          Este aluno não está alocado em nenhuma turma.
+        </div>
+      )}
+
+      <div className="space-y-3">
+        <Label className="font-medium">Transferir para outra turma</Label>
+        <Select value={novaTurmaId} onValueChange={setNovaTurmaId}>
+          <SelectTrigger>
+            <SelectValue placeholder="Selecione a turma de destino" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="sem_turma">Remover da turma (sem realocar)</SelectItem>
+            {turmasDisponiveis.map(t => (
+              <SelectItem key={t.id} value={t.id}>
+                {t.nome} — {t.ciclo || "sem ciclo"} ({t.alunos_ids?.length || 0}/{t.vagas_total} vagas)
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {novaTurmaId && novaTurmaId !== "sem_turma" && (
+          <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-xs text-yellow-800">
+            ⚠️ O aluno será removido da turma atual. O histórico de chamadas é mantido.
+          </div>
+        )}
+
+        <Button
+          onClick={handleTransferir}
+          disabled={!novaTurmaId || transferindo}
+          className="w-full bg-blue-600 hover:bg-blue-700"
+        >
+          {transferindo ? (
+            <span className="flex items-center gap-2">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+              Transferindo...
+            </span>
+          ) : "Confirmar transferência"}
+        </Button>
+      </div>
+    </div>
+  );
+};
+
+// ============================================================
+// 📊 COMPONENTE: Frequência do aluno
+// ============================================================
+const FrequenciaAlunoPanel = ({ alunoId }) => {
+  const [stats, setStats] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!alunoId) return;
+    axios.get(`${API}/reports/teacher-stats`)
+      .then(res => {
+        const found = res.data?.detalhes_por_aluno?.find(
+          a => String(a.id) === String(alunoId)
+        );
+        setStats(found || null);
+      })
+      .catch(() => setStats(null))
+      .finally(() => setLoading(false));
+  }, [alunoId]);
+
+  if (loading) return (
+    <div className="text-center py-8 text-gray-500">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+      Carregando frequência...
+    </div>
+  );
+
+  if (!stats) return (
+    <div className="text-center py-8 text-gray-500">
+      <BarChart3 className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+      <p>Sem dados de frequência ainda.</p>
+      <p className="text-sm mt-1">Este aluno ainda não possui chamadas registradas.</p>
+    </div>
+  );
+
+  const pct = stats.percentualPresenca || 0;
+  const risco = pct >= 75 ? "adequado" : pct >= 60 ? "em_risco" : "critico";
+  const corRisco = {
+    adequado: "text-green-600",
+    em_risco: "text-yellow-600",
+    critico: "text-red-600"
+  }[risco];
+  const labelRisco = {
+    adequado: "✅ Frequência adequada (≥75%)",
+    em_risco: "⚠️ Aluno em risco (60–74%)",
+    critico: "🚨 Situação crítica (<60%)"
+  }[risco];
+  const bgRisco = {
+    adequado: "bg-green-50 text-green-800 border border-green-200",
+    em_risco: "bg-yellow-50 text-yellow-800 border border-yellow-200",
+    critico: "bg-red-50 text-red-800 border border-red-200"
+  }[risco];
+
+  const faltas = (stats.totalChamadas || 0) - (stats.presencas || 0);
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="bg-gray-50 rounded-lg p-4 text-center">
+          <p className={`text-2xl font-bold ${corRisco}`}>{pct.toFixed(1)}%</p>
+          <p className="text-xs text-gray-500 mt-1">Frequência</p>
+        </div>
+        <div className="bg-gray-50 rounded-lg p-4 text-center">
+          <p className="text-2xl font-bold text-green-600">{stats.presencas || 0}</p>
+          <p className="text-xs text-gray-500 mt-1">Presenças</p>
+        </div>
+        <div className="bg-gray-50 rounded-lg p-4 text-center">
+          <p className="text-2xl font-bold text-red-600">{faltas}</p>
+          <p className="text-xs text-gray-500 mt-1">Faltas</p>
+        </div>
+        <div className="bg-gray-50 rounded-lg p-4 text-center">
+          <p className="text-2xl font-bold text-gray-700">{stats.totalChamadas || 0}</p>
+          <p className="text-xs text-gray-500 mt-1">Total de aulas</p>
+        </div>
+      </div>
+
+      <div className={`p-3 rounded-lg text-sm font-medium ${bgRisco}`}>
+        {labelRisco}
+      </div>
+    </div>
+  );
+};
   
   // Alunos Manager Component COMPLETO
   const AlunosManager = () => {
@@ -7455,14 +7671,15 @@ const cursoOk = filtroCurso === "todos" ||
             </DialogHeader>
   
             {viewingAluno && (
-              <Tabs defaultValue="dados" className="w-full">
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="dados">Dados Pessoais</TabsTrigger>
-                  <TabsTrigger value="justificativas">
-                    Justificativas ({studentJustifications.length})
-                  </TabsTrigger>
-                </TabsList>
-  
+            <Tabs defaultValue="dados" className="w-full">
+              <TabsList className="grid w-full grid-cols-4">
+                <TabsTrigger value="dados">Dados Pessoais</TabsTrigger>
+                <TabsTrigger value="turma">Turma e Curso</TabsTrigger>
+                <TabsTrigger value="justificativas">
+                  Justificativas ({studentJustifications.length})
+                </TabsTrigger>
+                <TabsTrigger value="frequencia">Frequência</TabsTrigger>
+              </TabsList>
                 {/* Aba de Dados Pessoais */}
                 <TabsContent value="dados" className="space-y-4 mt-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -7619,7 +7836,50 @@ const cursoOk = filtroCurso === "todos" ||
                     </Card>
                   </div>
                 </TabsContent>
-  
+
+
+                         {/* Aba Turma e Curso */}
+                <TabsContent value="turma" className="space-y-4 mt-4">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center">
+                        <GraduationCap className="h-5 w-5 mr-2" />
+                        Turma e Curso
+                      </CardTitle>
+                      <CardDescription>
+                        Veja a turma atual do aluno ou transfira para outra
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <TransferirTurmaPanel
+                        aluno={viewingAluno}
+                        turmas={turmas}
+                        onTransferido={() => {
+                          fetchTurmas();
+                          fetchAlunos();
+                        }}
+                      />
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+                
+                {/* Aba Frequência */}
+                <TabsContent value="frequencia" className="space-y-4 mt-4">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center">
+                        <BarChart3 className="h-5 w-5 mr-2" />
+                        Frequência
+                      </CardTitle>
+                      <CardDescription>
+                        Dados de presença e faltas deste aluno
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <FrequenciaAlunoPanel alunoId={viewingAluno?.id} />
+                    </CardContent>
+                  </Card>
+                </TabsContent>
                 {/* Aba de Justificativas */}
                 <TabsContent value="justificativas" className="space-y-4 mt-4">
                   <Card>
@@ -7650,86 +7910,90 @@ const cursoOk = filtroCurso === "todos" ||
                         </div>
                       ) : (
                         <div className="space-y-4">
-                          {Array.isArray(studentJustifications) &&
-                            studentJustifications.map((justification) => (
-                              <Card
-                                key={justification.id}
-                                className="border-l-4 border-l-blue-500"
-                              >
-                                <CardContent className="pt-4">
-                                  <div className="flex justify-between items-start">
-                                    <div className="flex-1">
-                                      <div className="flex items-center space-x-2 mb-2">
-                                        <Badge variant="outline">
-                                          {justification.reason_label}
-                                        </Badge>
-                                        <span className="text-sm text-gray-500">
-                                          {new Date(
-                                            justification.created_at,
-                                          ).toLocaleDateString("pt-BR")}
-                                        </span>
-                                      </div>
-  
-                                      {justification.observations && (
-                                        <div className="mb-3">
-                                          <Label className="text-sm font-medium text-gray-600">
-                                            Observações:
-                                          </Label>
-                                          <p className="text-sm bg-gray-50 p-2 rounded border">
-                                            {justification.observations}
-                                          </p>
-                                        </div>
-                                      )}
-  
-                                      {justification.attendance_id && (
-                                        <div className="text-xs text-gray-500">
-                                          Vinculada à chamada:{" "}
-                                          {justification.attendance_id}
-                                        </div>
-                                      )}
-                                    </div>
-  
-                                    <div className="flex space-x-2 ml-4">
-                                      {justification.has_file && (
-                                        <Button
-                                          onClick={() =>
-                                            downloadJustificationFile(
-                                              justification.id,
-                                              justification.filename,
-                                            )
-                                          }
-                                          variant="outline"
-                                          size="sm"
-                                          title="Baixar documento"
-                                        >
-                                          <Download className="h-4 w-4" />
-                                        </Button>
-                                      )}
-  
-                                      <Button
-                                        onClick={() =>
-                                          deleteJustification(justification.id)
-                                        }
-                                        variant="outline"
-                                        size="sm"
-                                        className="text-red-600 border-red-600 hover:bg-red-50"
-                                        title="Remover justificativa"
-                                      >
-                                        <Trash2 className="h-4 w-4" />
-                                      </Button>
-                                    </div>
+                    {Array.isArray(studentJustifications) &&
+                      studentJustifications.map((justification) => (
+                        <Card
+                          key={justification.id}
+                          className="border-l-4 border-l-blue-500"
+                        >
+                          <CardContent className="pt-4">
+                            <div className="flex justify-between items-start">
+                              <div className="flex-1">
+                                <div className="flex items-center space-x-2 mb-2">
+                                  <Badge variant="outline">
+                                    {justification.reason_text || justification.reason_code || "Justificativa"}
+                                  </Badge>
+                                  <span className="text-sm text-gray-500">
+                                    {justification.uploaded_at
+                                      ? new Date(justification.uploaded_at).toLocaleDateString("pt-BR")
+                                      : ""}
+                                  </span>
+                                </div>
+                    
+                                {justification.reason_text && (
+                                  <div className="mb-3">
+                                    <Label className="text-sm font-medium text-gray-600">
+                                      Observações:
+                                    </Label>
+                                    <p className="text-sm bg-gray-50 p-2 rounded border">
+                                      {justification.reason_text}
+                                    </p>
                                   </div>
-                                </CardContent>
-                              </Card>
-                            ))}
+                                )}
+                    
+                                <div className="text-xs text-gray-500">
+                                  Registrado por: {justification.uploaded_by_name || "—"}
+                                </div>
+                    
+                                {justification.attendance_id && (
+                                  <div className="text-xs text-gray-500">
+                                    Vinculada à chamada: {justification.attendance_id}
+                                  </div>
+                                )}
+                              </div>
+                    
+                              <div className="flex space-x-2 ml-4">
+                                {justification.has_file && (
+                                  <Button
+                                    onClick={() =>
+                                      downloadJustificationFile(
+                                        justification.id,
+                                        justification.file_name,
+                                      )
+                                    }
+                                    variant="outline"
+                                    size="sm"
+                                    title="Baixar documento"
+                                  >
+                                    <Download className="h-4 w-4" />
+                                  </Button>
+                                )}
+                    
+                                <Button
+                                  onClick={() =>
+                                    deleteJustification(justification.id)
+                                  }
+                                  variant="outline"
+                                  size="sm"
+                                  className="text-red-600 border-red-600 hover:bg-red-50"
+                                  title="Remover justificativa"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+))}
                         </div>
                       )}
                     </CardContent>
                   </Card>
                 </TabsContent>
+
               </Tabs>
             )}
-  
+
             <div className="flex justify-end pt-4">
               <Button
                 variant="outline"
