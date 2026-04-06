@@ -4530,54 +4530,66 @@ async def get_student_frequency_report(
             "% Presença", "Classificação de Risco",
             "Status do Aluno", "Data de Nascimento", "Email"
         ])
-        
+        # 🚀 BUSCAR TODOS OS ALUNOS DE UMA VEZ
+        todos_ids = list(aluno_stats.keys())
+        alunos_lista = await db.alunos.find({"id": {"$in": todos_ids}}).to_list(10000)
+        alunos_map = {a["id"]: a for a in alunos_lista}
+
+        # 🚀 BUSCAR TODAS AS TURMAS DE UMA VEZ
+        turmas_ids_unicos = list({v["turma_id"] for v in aluno_stats.values() if v.get("turma_id")})
+        turmas_lista = await db.turmas.find({"id": {"$in": turmas_ids_unicos}}).to_list(10000)
+        turmas_map = {t["id"]: t for t in turmas_lista}
+
+        # 🚀 BUSCAR UNIDADES E CURSOS DE UMA VEZ
+        unidade_ids = list({t.get("unidade_id") for t in turmas_lista if t.get("unidade_id")})
+        curso_ids_list = list({t.get("curso_id") for t in turmas_lista if t.get("curso_id")})
+        unidades_map = {u["id"]: u for u in await db.unidades.find({"id": {"$in": unidade_ids}}).to_list(1000)}
+        cursos_map = {c["id"]: c for c in await db.cursos.find({"id": {"$in": curso_ids_list}}).to_list(1000)}
+
+        # 🚀 MONTAR MAPA ALUNO → TURMA
+        turmas_por_aluno = {}
+        for turma in turmas_lista:
+            for aid in turma.get("alunos_ids", []):
+                turmas_por_aluno[aid] = turma
+
         # Processar cada aluno
         for aluno_id, stats in aluno_stats.items():
             try:
-                # Buscar dados do aluno
-                aluno = await db.alunos.find_one({"id": aluno_id})
+                aluno = alunos_map.get(aluno_id)
                 if not aluno:
                     continue
-                
-                # Calcular percentual preciso
+
                 total_chamadas = stats["total_chamadas"]
                 total_presencas = stats["total_presencas"]
+                total_faltas = stats["total_faltas"]
                 percentual = round((total_presencas / total_chamadas * 100), 2) if total_chamadas > 0 else 0.0
-                
-                # Classificação de risco
+
                 if percentual >= 75:
                     risco = "Situação Normal"
                 elif percentual >= 50:
                     risco = "Atenção"
                 else:
                     risco = "Situação Crítica"
-                
-                # Formatar data de nascimento
+
                 data_nasc = aluno.get("data_nascimento")
                 if data_nasc:
-                    if isinstance(data_nasc, str):
-                        data_nasc_str = data_nasc
-                    else:
-                        data_nasc_str = data_nasc.strftime("%d/%m/%Y") if hasattr(data_nasc, 'strftime') else str(data_nasc)
+                    data_nasc_str = data_nasc if isinstance(data_nasc, str) else (data_nasc.strftime("%d/%m/%Y") if hasattr(data_nasc, 'strftime') else str(data_nasc))
                 else:
                     data_nasc_str = "N/A"
-                
-                # Escrever linha
-                # Buscar turma, unidade e curso do aluno
-                turma_do_aluno = await db.turmas.find_one({"alunos_ids": aluno_id})
+
+                turma_do_aluno = turmas_por_aluno.get(aluno_id)
                 unidade_nome_csv = "N/A"
-                curso_nome_csv   = "N/A"
-                turma_nome_csv   = "N/A"
+                curso_nome_csv = "N/A"
+                turma_nome_csv = "N/A"
+
                 if turma_do_aluno:
                     turma_nome_csv = turma_do_aluno.get("nome", "N/A")
-                    if turma_do_aluno.get("unidade_id"):
-                        u = await db.unidades.find_one({"id": turma_do_aluno["unidade_id"]})
-                        if u:
-                            unidade_nome_csv = u.get("nome", "N/A")
-                    if turma_do_aluno.get("curso_id"):
-                        c = await db.cursos.find_one({"id": turma_do_aluno["curso_id"]})
-                        if c:
-                            curso_nome_csv = c.get("nome", "N/A")
+                    u = unidades_map.get(turma_do_aluno.get("unidade_id", ""))
+                    if u:
+                        unidade_nome_csv = u.get("nome", "N/A")
+                    c = cursos_map.get(turma_do_aluno.get("curso_id", ""))
+                    if c:
+                        curso_nome_csv = c.get("nome", "N/A")
 
                 writer.writerow([
                     aluno.get("nome", ""),
@@ -4587,21 +4599,21 @@ async def get_student_frequency_report(
                     turma_nome_csv,
                     total_chamadas,
                     total_presencas,
-                    stats["total_faltas"],
+                    total_faltas,
                     f"{percentual:.2f}%",
                     risco,
                     aluno.get("status", "ativo").title(),
                     data_nasc_str,
                     aluno.get("email", "N/A")
                 ])
-                
+
             except Exception as e:
                 print(f"Erro ao processar aluno {aluno_id}: {e}")
                 continue
-        
+
         output.seek(0)
         return {"csv_data": output.getvalue()}
-    
+        
     # Se não for export_csv, retorna dados estruturados
     return {"message": "Use export_csv=true para baixar CSV"}
 
