@@ -2170,7 +2170,106 @@ const Login = () => {
       </div>
     );
   };
-  
+  const SolicitacaoNotifBell = () => {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [notifs, setNotifs] = useState([]);
+  const [showDialog, setShowDialog] = useState(false);
+
+  const fetchNotifs = async () => {
+    if (!user || user.tipo === "admin") return;
+    try {
+      const res = await axios.get(`${API}/notifications/my?apenas_nao_lidas=true`);
+      setNotifs(Array.isArray(res.data) ? res.data : []);
+    } catch {
+      setNotifs([]);
+    }
+  };
+
+  useEffect(() => {
+    fetchNotifs();
+    const interval = setInterval(fetchNotifs, 2 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [user]);
+
+  const marcarLida = async (id) => {
+    await axios.put(`${API}/notifications/${id}/read`).catch(() => {});
+    setNotifs(prev => prev.filter(n => n.id !== id));
+  };
+
+  const marcarTodasLidas = async () => {
+    await axios.put(`${API}/notifications/read-all`).catch(() => {});
+    setNotifs([]);
+    setShowDialog(false);
+  };
+
+  if (!user || user.tipo === "admin") return null;
+
+  return (
+    <>
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => { setShowDialog(true); fetchNotifs(); }}
+        className="relative text-gray-500 hover:text-gray-700"
+        title="Notificações de solicitações"
+      >
+        <Bell className="h-5 w-5" />
+        {notifs.length > 0 && (
+          <span className="absolute -top-1 -right-1 bg-blue-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+            {notifs.length}
+          </span>
+        )}
+      </Button>
+
+      <Dialog open={showDialog} onOpenChange={setShowDialog}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Bell className="h-5 w-5 text-blue-600" />
+              Notificações de Solicitações
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 max-h-80 overflow-y-auto">
+            {notifs.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <CheckCircle className="h-10 w-10 mx-auto mb-2 text-green-400" />
+                <p>Nenhuma notificação nova.</p>
+              </div>
+            ) : (
+              notifs.map(n => (
+                <Card key={n.id} className={`border-l-4 ${n.titulo.includes("aprovada") ? "border-l-green-500" : "border-l-red-500"}`}>
+                  <CardContent className="p-3">
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <p className="font-semibold text-sm">{n.titulo}</p>
+                        <p className="text-xs text-gray-600 mt-1">{n.mensagem}</p>
+                        <p className="text-xs text-gray-400 mt-1">
+                          {new Date(n.created_at).toLocaleString("pt-BR")}
+                        </p>
+                      </div>
+                      <Button size="sm" variant="ghost" onClick={() => marcarLida(n.id)} className="text-xs text-gray-400 hover:text-gray-600 ml-2">
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            )}
+          </div>
+          {notifs.length > 0 && (
+            <div className="flex justify-end pt-2 border-t">
+              <Button variant="outline" size="sm" onClick={marcarTodasLidas}>
+                Marcar todas como lidas
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+};
+
   // 🔔 Componente de Notificações
   const NotificationButton = () => {
     const [notifications, setNotifications] = useState([]);
@@ -2380,6 +2479,7 @@ const Login = () => {
               </div>
               <div className="flex items-center space-x-4">
                 {/* Componente de Notificações */}
+                <SolicitacaoNotifBell />
                 <NotificationButton />
   
                 <Badge variant="outline">{getUserTypeLabel(user?.tipo)}</Badge>
