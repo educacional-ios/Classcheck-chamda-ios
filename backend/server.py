@@ -796,6 +796,14 @@ def check_admin_permission(current_user: UserResponse):
     if current_user.tipo != "admin":
         raise HTTPException(status_code=403, detail="Apenas administradores podem realizar esta ação")
 
+# NOVO: Bloqueia gestor de executar qualquer ação de escrita
+def check_gestor_permission(current_user: UserResponse):
+    if current_user.tipo == "gestor":
+        raise HTTPException(
+            status_code=403,
+            detail="Perfil gestor permite apenas visualização. Ação não permitida."
+        )
+
 # 🔒 PERMISSÕES RBAC PARA JUSTIFICATIVAS
 async def user_can_manage_student(current_user: UserResponse, student_id: str) -> bool:
     """
@@ -924,6 +932,15 @@ async def create_user(user_create: UserCreate, current_user: UserResponse = Depe
     existing_user = await db.usuarios.find_one({"email": user_create.email})
     if existing_user:
         raise HTTPException(status_code=400, detail="Email já cadastrado")
+        
+    # NOVO: Validação de tipos permitidos — "gestor" é o perfil de leitura gerencial
+    tipos_validos = ["admin", "instrutor", "pedagogo", "monitor", "gestor"]
+    if user_create.tipo not in tipos_validos:
+        raise HTTPException(status_code=400, detail=f"Tipo inválido. Use: {tipos_validos}")
+    
+    # Gestor não precisa de unidade ou curso vinculado
+    if user_create.tipo == "gestor":
+        pass  # Segue direto para criação sem validar unidade/curso
     
     # Validação específica para instrutores, pedagogos e monitores
     if user_create.tipo in ["instrutor", "pedagogo", "monitor"]:
@@ -1262,8 +1279,11 @@ async def delete_curso(curso_id: str, current_user: UserResponse = Depends(get_c
     return {"message": "Curso desativado com sucesso"}
 
 # ALUNOS ROUTES
+        
 @api_router.post("/students", response_model=Aluno)
 async def create_aluno(aluno_create: AlunoCreate, current_user: UserResponse = Depends(get_current_user)):
+    check_admin_permission(current_user)
+    check_gestor_permission(current_user)  # NOVO
     """📖 CADASTRO DE ALUNO - LÓGICA REFINADA 29/09/2025
     
     👨‍🏫 Instrutor: Cadastra apenas no seu curso
@@ -2485,6 +2505,8 @@ async def import_students_csv(
 # TURMAS ROUTES
 @api_router.post("/classes", response_model=Turma)
 async def create_turma(turma_create: TurmaCreate, current_user: UserResponse = Depends(get_current_user)):
+    check_admin_permission(current_user)
+    check_gestor_permission(current_user)  # NOVO
     # COMPATIBILIDADE: Converter formato antigo para novo
     instrutor_ids_list = turma_create.get_instrutor_ids()
     
@@ -2600,6 +2622,7 @@ async def get_turmas(current_user: UserResponse = Depends(get_current_user)):
             # REMOVIDO FILTRO DE CURSO/UNIDADE PARA INSTRUTOR
             # Motivo: Se o instrutor foi atribuído à turma, ele deve vê-la mesmo que seja de outra unidade
             print(f"🔍 Instrutor {current_user.email} buscando turmas. Query: {query}")
+
         
         elif current_user.tipo in ["pedagogo", "monitor"]:
             # Pedagogo e monitor veem turmas do seu curso e unidade
@@ -3839,8 +3862,11 @@ async def get_attendance_report(
     # Non-CSV response (JSON) - kept working
     query = {}
     
-    # 🔒 FILTROS DE PERMISSÃO POR TIPO DE USUÁRIO
-    if current_user.tipo == "instrutor":
+# 🔒 FILTROS DE PERMISSÃO POR TIPO DE USUÁRIO
+    # NOVO: gestor tem visão total nos relatórios, sem filtro de unidade/curso
+    if current_user.tipo == "gestor":
+        pass  # query permanece {} — acesso irrestrito a todos os dados
+    elif current_user.tipo == "instrutor":
         # ✅ Instrutor só pode ver suas turmas REGULARES
         turmas_instrutor = await db.turmas.find({
             "$or": [
@@ -3964,12 +3990,13 @@ async def generate_csv_background(
         # Update job status
         csv_jobs[job_id]["status"] = "processing"
         csv_jobs[job_id]["progress"] = 10
-        
         # Build query with same permissions as original endpoint
         query = {}
-        
-        # Apply user permissions (simplified for brevity)
-        if current_user.tipo == "instrutor":
+
+        # NOVO: gestor tem visão total nos relatórios, sem filtro de unidade/curso
+        if current_user.tipo == "gestor":
+            pass  # query permanece {} — acesso irrestrito a todos os dados
+        elif current_user.tipo == "instrutor":
             turmas_instrutor = await db.turmas.find({
                 "$or": [
                     {"instrutor_id": current_user.id},
@@ -3984,7 +4011,7 @@ async def generate_csv_background(
                 csv_jobs[job_id]["status"] = "completed"
                 csv_jobs[job_id]["csv_url"] = "data:text/csv;base64," + base64.b64encode("No data".encode()).decode()
                 return
-        
+                            
         # Apply filters
         if turma_id and current_user.tipo == "admin":
             query["turma_id"] = turma_id
@@ -4879,7 +4906,6 @@ async def get_dashboard_stats(current_user: UserResponse = Depends(get_current_u
             ausentes = len(records) - presentes
             total_presencas_mes += presentes
             total_faltas_mes += ausentes
-        
         return {
             "total_unidades": total_unidades,
             "total_cursos": total_cursos,
@@ -4892,7 +4918,41 @@ async def get_dashboard_stats(current_user: UserResponse = Depends(get_current_u
             "faltas_mes": total_faltas_mes,
             "taxa_presenca_mes": round((total_presencas_mes / (total_presencas_mes + total_faltas_mes) * 100) if (total_presencas_mes + total_faltas_mes) > 0 else 0, 1)
         }
-    
+
+    elif current_user.tipo == "gestor":
+        # NOVO: gestor enxerga visão global igual ao admin
+        total_unidades = await db.unidades.count_documents({"ativo": True})
+        total_cursos = await db.cursos.count_documents({"ativo": True})
+        all_alunos = await db.alunos.find({}).to_list(10000)
+        alunos_ativos = len([a for a in all_alunos if a.get("status") == "ativo"])
+        alunos_desistentes = len([a for a in all_alunos if a.get("status") == "desistente"])
+        total_turmas = await db.turmas.count_documents({"ativo": True})
+        chamadas_mes = await db.attendances.find(
+            {"data": {"$gte": primeiro_mes.isoformat()}}
+        ).to_list(10000)
+        total_presencas_mes = 0
+        total_faltas_mes = 0
+        for chamada in chamadas_mes:
+            records = chamada.get("records", [])
+            presentes = len([r for r in records if r.get("presente", False)])
+            total_presencas_mes += presentes
+            total_faltas_mes += (len(records) - presentes)
+        return {
+            "total_unidades": total_unidades,
+            "total_cursos": total_cursos,
+            "total_alunos": alunos_ativos + alunos_desistentes,
+            "total_turmas": total_turmas,
+            "alunos_ativos": alunos_ativos,
+            "alunos_desistentes": alunos_desistentes,
+            "chamadas_hoje": 0,
+            "presencas_mes": total_presencas_mes,
+            "faltas_mes": total_faltas_mes,
+            "taxa_presenca_mes": round(
+                (total_presencas_mes / (total_presencas_mes + total_faltas_mes) * 100)
+                if (total_presencas_mes + total_faltas_mes) > 0 else 0, 1
+            )
+        }
+
     elif current_user.tipo == "instrutor":
         # 👨‍🏫 INSTRUTOR: Apenas suas turmas para estatísticas de chamada
         minhas_turmas = await db.turmas.find({"instrutor_ids": current_user.id, "ativo": True}).to_list(1000)
@@ -5032,8 +5092,14 @@ async def get_dashboard_stats(current_user: UserResponse = Depends(get_current_u
             "data": {"$gte": primeiro_mes.isoformat()}
         }).to_list(1000)
         
-        total_presencas_mes = sum(c.get("total_presentes", 0) for c in chamadas_mes)
-        total_faltas_mes = sum(c.get("total_faltas", 0) for c in chamadas_mes)
+        # CORRIGIDO: calcula a partir de records, igual ao bloco do admin
+        total_presencas_mes = 0
+        total_faltas_mes = 0
+        for chamada in chamadas_mes:
+            records = chamada.get("records", [])
+            presentes = len([r for r in records if r.get("presente", False)])
+            total_presencas_mes += presentes
+            total_faltas_mes += (len(records) - presentes)
         
         # Buscar dados do curso/unidade
         curso_nome = "Seu Curso"
@@ -5169,14 +5235,14 @@ async def get_dynamic_teacher_stats(
     current_user: UserResponse = Depends(get_current_user)
 ):
     """📊 RELATÓRIOS DINÂMICOS: Estatísticas completas e atualizadas automaticamente com filtros para admin"""
-    if current_user.tipo not in ["instrutor", "pedagogo", "monitor", "admin"]:
+if current_user.tipo not in ["instrutor", "pedagogo", "monitor", "admin", "gestor"]:  # NOVO: gestor incluído
         raise HTTPException(status_code=403, detail="Acesso restrito")
     
     # 🎯 Filtrar turmas baseado no tipo de usuário e filtros
     query_turmas = {"ativo": True}
     
-    if current_user.tipo == "admin":
-        # Admin pode usar filtros
+    if current_user.tipo in ["admin", "gestor"]:  # NOVO: gestor vê tudo igual ao admin
+        # Admin/Gestor pode usar filtros
         if unidade_id:
             query_turmas["unidade_id"] = unidade_id
         if curso_id:
@@ -6051,7 +6117,7 @@ async def get_teacher_stats(current_user: UserResponse = Depends(get_current_use
     """Estatísticas por tipo de usuário com cálculos corretos"""
     try:
         # 🎯 FILTRAR DADOS BASEADO NO TIPO DE USUÁRIO
-        if current_user.tipo == "admin":
+        if current_user.tipo in ["admin", "gestor"]:
             query_turmas = {"ativo": True}
 
         elif current_user.tipo == "instrutor":
