@@ -5235,7 +5235,7 @@ async def get_dynamic_teacher_stats(
     current_user: UserResponse = Depends(get_current_user)
 ):
     """📊 RELATÓRIOS DINÂMICOS: Estatísticas completas e atualizadas automaticamente com filtros para admin"""
-if current_user.tipo not in ["instrutor", "pedagogo", "monitor", "admin", "gestor"]:  # NOVO: gestor incluído
+    if current_user.tipo not in ["instrutor", "pedagogo", "monitor", "admin", "gestor"]:  # NOVO: gestor incluído
         raise HTTPException(status_code=403, detail="Acesso restrito")
     
     # 🎯 Filtrar turmas baseado no tipo de usuário e filtros
