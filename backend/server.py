@@ -4000,10 +4000,7 @@ async def generate_csv_background(
         # Generate CSV in memory (safe since background)
         output = StringIO()
         writer = csv.writer(output)
-        
-        # Simple CSV generation (optimized)
-        writer.writerow(["Aluno", "CPF", "Matricula", "Turma", "Data", "Status"])
-        
+               
         processed = 0
         for chamada in chamadas:
             try:
@@ -4256,7 +4253,7 @@ async def generate_complete_csv_stream(chamadas):
     
     # Send headers first
     writer.writerow([
-        "Nome do Aluno", "CPF", "Data de Nascimento", "Email", "Telefone",
+        "Nome do Aluno", "CPF","Telefone",
         "Curso", "Tipo de Turma", "Código da Turma", "Unidade", "Ciclo",
         "Instrutor Responsável", "Pedagogo Responsável", "Data de Início", "Data de Término",
         "Total de Chamadas", "Presenças", "Faltas", "% Presença (Total)", "% Presença (Últimos 30 Dias)",
@@ -4544,10 +4541,9 @@ async def get_student_frequency_report(
     if export_csv:
         # 📊 CALCULAR ESTATÍSTICAS POR ALUNO
         aluno_stats = {}
-        
         # Processar cada attendance
         for attendance in attendances:
-            turma_id = attendance.get("turma_id")
+            turma_id_att = attendance.get("turma_id")
             records = attendance.get("records", [])
             
             for record in records:
@@ -4559,7 +4555,7 @@ async def get_student_frequency_report(
                         "total_chamadas": 0,
                         "total_presencas": 0,
                         "total_faltas": 0,
-                        "turma_id": turma_id  # Para buscar dados da turma depois
+                        "turma_id": turma_id_att
                     }
                 
                 aluno_stats[aluno_id]["total_chamadas"] += 1
@@ -4567,6 +4563,34 @@ async def get_student_frequency_report(
                     aluno_stats[aluno_id]["total_presencas"] += 1
                 else:
                     aluno_stats[aluno_id]["total_faltas"] += 1
+
+        # ✅ INCLUIR TODOS OS ALUNOS DAS TURMAS (inclusive desistentes sem chamadas)
+        turmas_ids_para_alunos = []
+        if "turma_id" in query:
+            val = query["turma_id"]
+            if isinstance(val, dict) and "$in" in val:
+                turmas_ids_para_alunos = val["$in"]
+            elif isinstance(val, str):
+                turmas_ids_para_alunos = [val]
+        else:
+            # Sem filtro de turma — buscar todas as turmas que o usuário pode ver
+            turmas_visiveis = await db.turmas.find({"ativo": True}).to_list(10000)
+            turmas_ids_para_alunos = [t["id"] for t in turmas_visiveis]
+
+        turmas_para_alunos = await db.turmas.find(
+            {"id": {"$in": turmas_ids_para_alunos}}
+        ).to_list(10000)
+
+        for turma_doc in turmas_para_alunos:
+            for aluno_id in turma_doc.get("alunos_ids", []):
+                if aluno_id not in aluno_stats:
+                    # Aluno existe na turma mas não tem nenhum registro de chamada
+                    aluno_stats[aluno_id] = {
+                        "total_chamadas": 0,
+                        "total_presencas": 0,
+                        "total_faltas": 0,
+                        "turma_id": turma_doc["id"]
+                    }
         
         # Gerar CSV
         output = StringIO()
@@ -4577,7 +4601,7 @@ async def get_student_frequency_report(
             "Nome do Aluno", "CPF", "Unidade", "Curso", "Turma",
             "Total de Chamadas", "Presenças", "Faltas",
             "% Presença", "Classificação de Risco",
-            "Status do Aluno", "Data de Nascimento", "Email",
+            "Status do Aluno",
             "Motivo de Desistência"
         ])
         # 🚀 BUSCAR TODOS OS ALUNOS DE UMA VEZ
