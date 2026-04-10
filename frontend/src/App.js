@@ -2126,6 +2126,9 @@ const Login = () => {
                       <SelectItem value="monitor">
                         {getUserTypeLabel("monitor")}
                       </SelectItem>
+                      <SelectItem value="gestor">
+                      {getUserTypeLabel("gestor")}
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -3635,7 +3638,7 @@ const UsuariosManager = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
 
-  // ALTERAÇÃO 27/03/2026 — Adicionados arrays para suportar múltiplas unidades/cursos por professor
+  // ALTERAÇÃO 10/04/2026 — Adicionados arrays para suportar múltiplas unidades/cursos por professor e titulo personalizavel 
   const [formData, setFormData] = useState({
     nome: "",
     email: "",
@@ -3643,8 +3646,9 @@ const UsuariosManager = () => {
     telefone: "",
     unidade_id: "",
     curso_id: "",
-    unidade_ids: [],  // NOVO: array de unidades
-    curso_ids: [],    // NOVO: array de cursos
+    unidade_ids: [],
+    curso_ids: [],
+    titulo_personalizado: "",
   });
 
   // CORREÇÃO: useToast declarado no topo para ser usado em todo o componente
@@ -3808,13 +3812,12 @@ const UsuariosManager = () => {
       telefone: "",
       unidade_id: "",
       curso_id: "",
-      // ALTERAÇÃO 27/03/2026 — Resetar arrays junto com campos antigos
       unidade_ids: [],
       curso_ids: [],
+      titulo_personalizado: "",
     });
   };
-    
-  const handleEdit = (usuario) => {
+    const handleEdit = (usuario) => {
     setEditingUser(usuario);
     setFormData({
       nome: usuario.nome,
@@ -3823,14 +3826,13 @@ const UsuariosManager = () => {
       telefone: usuario.telefone || "",
       unidade_id: usuario.unidade_id || "",
       curso_id: usuario.curso_id || "",
-      // ALTERAÇÃO 27/03/2026 — Carregar arrays ao abrir edição.
-      // Fallback para campo singular caso o registro ainda não tenha os arrays (dados legados)
       unidade_ids: usuario.unidade_ids?.length > 0
         ? usuario.unidade_ids
         : (usuario.unidade_id ? [usuario.unidade_id] : []),
       curso_ids: usuario.curso_ids?.length > 0
         ? usuario.curso_ids
         : (usuario.curso_id ? [usuario.curso_id] : []),
+      titulo_personalizado: usuario.titulo_personalizado || "",
     });
     setIsDialogOpen(true);
   };
@@ -3993,10 +3995,13 @@ const UsuariosManager = () => {
                           <SelectItem value="monitor">
                             {getUserTypeLabel("monitor")}
                           </SelectItem>
+                          <SelectItem value="gestor">
+                            {getUserTypeLabel("gestor")}
+                          </SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
-  
+                          
                     <div className="space-y-2">
                       <Label htmlFor="telefone">Telefone</Label>
                       <Input
@@ -4008,6 +4013,29 @@ const UsuariosManager = () => {
                         placeholder="(11) 99999-9999"
                       />
                     </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="titulo_personalizado">
+                        Título de exibição (opcional)
+                      </Label>
+                      <Input
+                        id="titulo_personalizado"
+                        value={formData.titulo_personalizado}
+                        onChange={(e) =>
+                          setFormData({ ...formData, titulo_personalizado: e.target.value })
+                        }
+                        placeholder={
+                          formData.tipo
+                            ? `Padrão: ${getUserTypeLabel(formData.tipo)}`
+                            : "Selecione o tipo primeiro"
+                        }
+                      />
+                      <p className="text-xs text-gray-500">
+                        Personalize o título exibido. Ex: Coordenador(a), Supervisor(a)
+                      </p>
+                    </div>
+
+
                     {formData.tipo !== "admin" && (
                       <>
                         <div className="space-y-2">
