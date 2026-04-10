@@ -2214,7 +2214,7 @@ const Login = () => {
         className="relative text-gray-500 hover:text-gray-700"
         title="Notificações de solicitações"
       >
-        <Bell className="h-5 w-5" />
+        <AlertTriangle className="h-5 w-5 text-yellow-500" />
         {notifs.length > 0 && (
           <span className="absolute -top-1 -right-1 bg-blue-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
             {notifs.length}
