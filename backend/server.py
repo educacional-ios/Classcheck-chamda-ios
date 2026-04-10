@@ -4067,10 +4067,11 @@ async def generate_simple_csv_stream(chamadas):
     
     # Send headers first
     writer.writerow([
-        "Aluno", "CPF", "Matricula", "Turma", "Tipo_Turma", "Curso", "Data", 
-        "Hora_Inicio", "Hora_Fim", "Status", "Hora_Registro", 
-        "Responsavel_Turma", "Tipo_Responsavel", "Responsavel_Chamada", 
-        "Unidade", "Observacoes", "Total_Presencas", "Total_Faltas", "Falta_Justificada"
+        "Aluno", "CPF", "Matricula", "Turma", "Tipo_Turma", "Curso", "Data",
+        "Hora_Inicio", "Hora_Fim", "Status", "Hora_Registro",
+        "Responsavel_Turma", "Tipo_Responsavel", "Responsavel_Chamada",
+        "Unidade", "Observacoes", "Total_Presencas", "Total_Faltas", "Falta_Justificada",
+        "Motivo_Desistencia"
     ])
     yield buffer.getvalue()
     buffer.seek(0)
@@ -4183,13 +4184,25 @@ async def generate_simple_csv_stream(chamadas):
                                 else:
                                     total_faltas_aluno += 1
                     
-                    # Verificar se esta falta específica tem justificativa
+                        # Verificar se esta falta específica tem justificativa
                     if not presente:
                         justificativa_existe = await db.justifications.find_one({
                             "student_id": aluno_id
                         })
                         if justificativa_existe or record.get("justificativa"):
                             falta_justificada = "Sim"
+
+                    # Buscar motivo de desistência se aluno for desistente
+                    motivo_desistencia = ""
+                    if aluno.get("status") == "desistente":
+                        reg_desistencia = await db.desistentes.find_one(
+                            {"aluno_id": aluno_id},
+                            sort=[("created_at", -1)]
+                        )
+                        if reg_desistencia:
+                            motivo_desistencia = reg_desistencia.get("motivo_descricao", "")
+                            if reg_desistencia.get("motivo_personalizado"):
+                                motivo_desistencia += f" — {reg_desistencia.get('motivo_personalizado')}"
                     
                     writer.writerow([
                         aluno.get("nome", ""),                          # Aluno
@@ -4203,15 +4216,15 @@ async def generate_simple_csv_stream(chamadas):
                         turma.get("horario_fim", ""),                   # Hora_Fim
                         "Presente" if presente else "Ausente",          # Status
                         record.get("hora_registro", ""),                # Hora_Registro
-                        responsavel_nome,                               # Responsavel_Turma (instrutor da turma)
+                        responsavel_nome,                               # Responsavel_Turma
                         tipo_responsavel_label,                         # Tipo_Responsavel
-                        responsavel_chamada_nome,                       # Responsavel_Chamada (quem fez a chamada)
+                        responsavel_chamada_nome,                       # Responsavel_Chamada
                         unidade.get("nome", "") if unidade else "",     # Unidade
                         observacoes_texto,                              # Observacoes
                         total_presencas_aluno,                          # Total_Presencas
                         total_faltas_aluno,                             # Total_Faltas
-                        falta_justificada                               # Falta_Justificada
-                                            
+                        falta_justificada,                              # Falta_Justificada
+                        motivo_desistencia,                             # Motivo_Desistencia
                     ])
                     
                     # 🚨 STREAM THE ROW IMMEDIATELY (prevents timeout!)
@@ -4392,7 +4405,7 @@ async def generate_complete_csv_stream(chamadas):
                     min(presencas, 5),    # Presenças Recentes (simplified)
                     risco,      # Classificação de Risco
                     aluno.get("status", "Ativo"),  # Status do Aluno
-                    aluno.get("motivo_desistencia", ""),  # Motivo de Desistência
+                    (await db.desistentes.find_one({"aluno_id": aluno["id"]}) or {}).get("motivo_descricao", ""),  # Motivo de Desistência
                     aluno.get("media_geral", ""),  # Média Geral
                     f"{min(100, (presencas/total*100) if total > 0 else 0):.0f}%",  # Progresso no Curso (%)
                     "; ".join(observacoes)  # Observações
@@ -4564,7 +4577,8 @@ async def get_student_frequency_report(
             "Nome do Aluno", "CPF", "Unidade", "Curso", "Turma",
             "Total de Chamadas", "Presenças", "Faltas",
             "% Presença", "Classificação de Risco",
-            "Status do Aluno", "Data de Nascimento", "Email"
+            "Status do Aluno", "Data de Nascimento", "Email",
+            "Motivo de Desistência"
         ])
         # 🚀 BUSCAR TODOS OS ALUNOS DE UMA VEZ
         todos_ids = list(aluno_stats.keys())
@@ -4640,9 +4654,9 @@ async def get_student_frequency_report(
                     risco,
                     aluno.get("status", "ativo").title(),
                     data_nasc_str,
-                    aluno.get("email", "N/A")
+                    aluno.get("email", "N/A"),
+                    (await db.desistentes.find_one({"aluno_id": aluno_id}) or {}).get("motivo_descricao", "") if aluno.get("status") == "desistente" else ""
                 ])
-
             except Exception as e:
                 print(f"Erro ao processar aluno {aluno_id}: {e}")
                 continue
