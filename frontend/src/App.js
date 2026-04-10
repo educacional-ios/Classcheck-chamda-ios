@@ -2434,6 +2434,8 @@ const Login = () => {
                       
   // Dashboard Component
   const Dashboard = () => {
+    const [filtrosTurmas, setFiltrosTurmas] = useState({ nome: "", tipo: "todos", unidade: "todos", curso: "todos" });
+    const [filtrosAlunos, setFiltrosAlunos] = useState({ busca: "", curso: "todos", turma: "todos" });
     const [stats, setStats] = useState({});
     const [loading, setLoading] = useState(true);
     const { user, logout } = useAuth();
@@ -2774,7 +2776,7 @@ const Login = () => {
                 </TabsList>
                     
               <TabsContent value="turmas">
-              <TurmasManager />
+              <TurmasManager filtros={filtrosTurmas} setFiltros={setFiltrosTurmas} />
             </TabsContent>
   
             <TabsContent value="chamada">
@@ -2786,7 +2788,7 @@ const Login = () => {
               user?.tipo,
             ) && (
               <TabsContent value="alunos">
-                <AlunosManager />
+                <AlunosManager filtros={filtrosAlunos} setFiltros={setFiltrosAlunos} />
               </TabsContent>
             )}
   
@@ -4377,7 +4379,7 @@ const UsuariosManager = () => {
     };
                           
   // Turmas Manager Component CORRIGIDO
-  const TurmasManager = () => {
+  const TurmasManager = (props) => {
     const { user } = useAuth(); // ✅ CORREÇÃO: Adicionar useAuth para acessar user
     const [turmas, setTurmas] = useState([]);
     const [unidades, setUnidades] = useState([]);
@@ -4405,10 +4407,11 @@ const UsuariosManager = () => {
     });
   const { toast } = useToast();
     const isMountedRef = React.useRef(true);
-    const [filtroNome, setFiltroNome] = useState("");
-    const [filtroTipo, setFiltroTipo] = useState("todos");
-    const [filtroUnidade, setFiltroUnidade] = useState("todos");
-    const [filtroCurso, setFiltroCurso] = useState("todos");
+    const { filtros, setFiltros } = props; // recebe do Dashboard
+    const filtroNome = filtros.nome;
+    const filtroTipo = filtros.tipo;
+    const filtroUnidade = filtros.unidade;
+    const filtroCurso = filtros.curso;
     useEffect(() => {
       isMountedRef.current = true;
       fetchData();
@@ -5128,12 +5131,10 @@ const UsuariosManager = () => {
           <div className="mb-4 p-4 bg-gray-50 border rounded-lg">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
               <div className="space-y-1">
-                <Label className="text-sm">Buscar por nome</Label>
-                <Input placeholder="Nome da turma..." value={filtroNome} onChange={(e) => setFiltroNome(e.target.value)} />
-              </div>
+                <Label className="text-sm">Buscar por nome</Label><Input placeholder="Nome da turma..." value={filtroNome} onChange={(e) => setFiltros({ ...filtros, nome: e.target.value })} />              </div>
               <div className="space-y-1">
                 <Label className="text-sm">Tipo</Label>
-                <Select value={filtroTipo} onValueChange={setFiltroTipo}>
+                <Select value={filtroTipo} onValueChange={(v) => setFiltros({ ...filtros, tipo: v })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="todos">Todos</SelectItem>
@@ -5144,7 +5145,7 @@ const UsuariosManager = () => {
               </div>
               <div className="space-y-1">
                 <Label className="text-sm">Unidade</Label>
-                <Select value={filtroUnidade} onValueChange={setFiltroUnidade}>
+                <Select value={filtroUnidade} onValueChange={(v) => setFiltros({ ...filtros, unidade: v })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="todos">Todas</SelectItem>
@@ -5156,7 +5157,7 @@ const UsuariosManager = () => {
               </div>
               <div className="space-y-1">
                 <Label className="text-sm">Curso</Label>
-                <Select value={filtroCurso} onValueChange={setFiltroCurso}>
+                <Select value={filtroCurso} onValueChange={(v) => setFiltros({ ...filtros, curso: v })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="todos">Todos</SelectItem>
@@ -5167,8 +5168,7 @@ const UsuariosManager = () => {
                 </Select>
               </div>
             </div>
-            <Button variant="outline" size="sm" className="mt-3" onClick={() => { setFiltroNome(""); setFiltroTipo("todos"); setFiltroUnidade("todos"); setFiltroCurso("todos"); }}>
-              <X className="h-4 w-4 mr-1" /> Limpar Filtros
+            <Button variant="outline" size="sm" className="mt-3" onClick={() => setFiltros({ nome: "", tipo: "todos", unidade: "todos", curso: "todos" })}>           <X className="h-4 w-4 mr-1" /> Limpar Filtros
             </Button>
           </div>
           <div className="table-container">
@@ -5340,21 +5340,21 @@ const UsuariosManager = () => {
     const [cursos, setCursos] = useState([]);
     const [turmas, setTurmas] = useState([]);
   
-    useEffect(() => {
-      // 📊 CARREGAR DADOS ESSENCIAIS PRIMEIRO
-      fetchDadosBasicos();
-      fetchDynamicStats();
-  
-      // Carregar dados para os filtros se for admin
+            useEffect(() => {
+              fetchDadosBasicos();
+            }, []);
+            useEffect(() => {
       if (user?.tipo === "admin" || user?.tipo === "gestor") {
         fetchFilterData();
       }
-  
-      // 🔄 AUTO-REFRESH: Atualizar relatórios a cada 30 segundos
-      const interval = setInterval(fetchDynamicStats, 30000);
-  
+      const interval = setInterval(() => fetchDynamicStats(filtros), 30000);
       return () => clearInterval(interval);
     }, [user]);
+    
+    useEffect(() => {
+      const timer = setTimeout(() => fetchDynamicStats(filtros), 500);
+      return () => clearTimeout(timer);
+    }, [filtros]);
   
     // 🔍 FUNÇÃO PING PARA ACORDAR RENDER (DASHBOARD)
     const wakeUpBackendDashboard = async () => {
@@ -5616,13 +5616,7 @@ const fetchDadosBasicos = async () => {
             });
           }
         };
-  
-    // 🔍 Função para aplicar filtros
-    const aplicarFiltros = () => {
-      setLoading(true);
-      fetchDynamicStats(filtros);
-    };
-  
+    
     // 🔧 EXECUTAR HEALTH CHECK - FASE 5
     const executarHealthCheck = async () => {
       try {
@@ -5843,15 +5837,8 @@ const fetchDadosBasicos = async () => {
                 </Select>
               </div>
             </div>
-            <div className="flex gap-2 mt-4">
-              <Button
-                onClick={aplicarFiltros}
-                size="sm"
-                className="bg-orange-600 hover:bg-orange-700"
-              >
-                <Search className="h-4 w-4 mr-1" />
-                Aplicar Filtros
-              </Button>
+              <div className="flex gap-2 mt-4">
+
               <Button onClick={limparFiltros} variant="outline" size="sm">
                 <X className="h-4 w-4 mr-1" />
                 Limpar
@@ -6446,7 +6433,7 @@ const FrequenciaAlunoPanel = ({ alunoId }) => {
 };
   
   // Alunos Manager Component COMPLETO
-  const AlunosManager = () => {
+  const AlunosManager = (props) => {
     const { user } = useAuth(); // 🔧 HOOK ORDER FIX: useAuth deve vir primeiro
     const { toast } = useToast();
   
@@ -6488,9 +6475,10 @@ const FrequenciaAlunoPanel = ({ alunoId }) => {
     nome_social: "",
     turma_id: "",
     });
-    const [filtroBusca, setFiltroBusca] = useState("");
-    const [filtroCurso, setFiltroCurso] = useState("todos");
-    const [filtroTurma, setFiltroTurma] = useState("todos");
+    const { filtros, setFiltros } = props;
+    const filtroBusca = filtros.busca;
+    const filtroCurso = filtros.curso;
+    const filtroTurma = filtros.turma;
     const [cursos, setCursos] = useState([]);
     const fetchDropoutReasons = async () => {
     try {
@@ -7273,14 +7261,14 @@ const fetchAlunos = async () => {
                   <Input
                     placeholder="Nome ou CPF..."
                     value={filtroBusca}
-                    onChange={(e) => setFiltroBusca(e.target.value)}
+                    onChange={(e) => setFiltros({ ...filtros, busca: e.target.value })}
                     className="pl-9"
                   />
                 </div>
               </div>
               <div className="space-y-1">
                 <Label className="text-sm">Curso</Label>
-                <Select value={filtroCurso} onValueChange={setFiltroCurso}>
+                <Select value={filtroCurso} onValueChange={(v) => setFiltros({ ...filtros, curso: v })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="todos">Todos</SelectItem>
@@ -7292,7 +7280,7 @@ const fetchAlunos = async () => {
               </div>
               <div className="space-y-1">
                 <Label className="text-sm">Turma</Label>
-                <Select value={filtroTurma} onValueChange={setFiltroTurma}>
+                <Select value={filtroTurma} onValueChange={(v) => setFiltros({ ...filtros, turma: v })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="todos">Todas</SelectItem>
@@ -7306,7 +7294,7 @@ const fetchAlunos = async () => {
                 <Button 
                   variant="outline" 
                   className="w-full" 
-                  onClick={() => { setFiltroBusca(""); setFiltroCurso("todos"); setFiltroTurma("todos"); }}
+                  onClick={() => setFiltros({ busca: "", curso: "todos", turma: "todos" })}
                 >
                   <X className="h-4 w-4 mr-1" /> Limpar Filtros
                 </Button>
