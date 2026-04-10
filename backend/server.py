@@ -142,8 +142,49 @@ async def test_connection():
 @app.on_event("startup")
 async def startup_event():
     await test_connection()
-    # 🎯 PRODUÇÃO: Inicialização de dados de exemplo removida
+    await migrar_desistentes_para_turmas()
     print("✅ Sistema iniciado SEM dados de exemplo")
+
+async def migrar_desistentes_para_turmas():
+    try:
+        print("🔄 Iniciando migração de desistentes para turmas originais...")
+        
+        desistentes = await db.desistentes.find({}).to_list(10000)
+        migrados = 0
+        
+        for registro in desistentes:
+            aluno_id = registro.get("aluno_id")
+            turma_id = registro.get("turma_id")
+            
+            if not aluno_id or not turma_id:
+                continue
+            
+            # Verificar se aluno existe e é desistente
+            aluno = await db.alunos.find_one({"id": aluno_id, "status": "desistente"})
+            if not aluno:
+                continue
+            
+            # Verificar se turma existe
+            turma = await db.turmas.find_one({"id": turma_id})
+            if not turma:
+                continue
+            
+            # Verificar se aluno já está na turma
+            if aluno_id in turma.get("alunos_ids", []):
+                continue
+            
+            # Recolocar aluno na turma
+            await db.turmas.update_one(
+                {"id": turma_id},
+                {"$addToSet": {"alunos_ids": aluno_id}}
+            )
+            migrados += 1
+            print(f"✅ {aluno.get('nome')} → turma {turma.get('nome')}")
+        
+        print(f"✅ Migração concluída: {migrados} alunos recolocados nas turmas")
+    
+    except Exception as e:
+        print(f"❌ Erro na migração de desistentes: {e}")
 
 # -------------------------
 # Router e rota de teste
