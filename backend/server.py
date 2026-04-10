@@ -3384,11 +3384,6 @@ async def create_desistente(desistente_create: DesistenteCreate, current_user: U
         {"$set": {"status": "desistente"}}
     )
     
-    # 🔄 REMOVER ALUNO DAS TURMAS: Para não aparecer mais nas chamadas
-    await db.turmas.update_many(
-        {"alunos_ids": desistente_create.aluno_id},
-        {"$pull": {"alunos_ids": desistente_create.aluno_id}}
-    )
     
     return desistente_obj
 
@@ -5477,15 +5472,54 @@ async def responder_solicitacao(
             )
 
     await db.attendance_change_requests.update_one(
-        {"id": request_id},
-        {"$set": {
-            "status_solicitacao": decision,
-            "admin_resposta": resposta,
-            "respondido_por": current_user.id,
-            "respondido_por_nome": current_user.nome,
-            "updated_at": datetime.now(timezone.utc)
-        }}
-    )
+            {"id": request_id},
+            {"$set": {
+                "status_solicitacao": decision,
+                "admin_resposta": resposta,
+                "respondido_por": current_user.id,
+                "respondido_por_nome": current_user.nome,
+                "updated_at": datetime.now(timezone.utc)
+            }}
+        )
+
+    # ✅ SE APROVADO: Criar justificativa no perfil do aluno
+    if decision == "aprovado" and req.get("tipo") == "justificativa_posterior":
+        justification_data = {
+            "id": str(uuid.uuid4()),
+            "student_id": req["aluno_id"],
+            "attendance_id": None,
+            "uploaded_by": current_user.id,
+            "uploaded_by_name": current_user.nome,
+            "uploaded_at": datetime.now(timezone.utc),
+            "reason_code": "CUSTOM",
+            "reason_text": f"Justificativa aprovada pelo administrador. Motivo original: {req.get('motivo', '')}",
+            "file_id": req.get("arquivo_id"),
+            "file_name": req.get("arquivo_nome"),
+            "file_mime": None,
+            "file_size": None,
+            "status": "registered",
+            "visible_to_student": True,
+            "aprovado_por": current_user.nome,
+            "created_at": datetime.now(timezone.utc)
+        }
+        await db.justifications.insert_one(justification_data)
+
+    # 🔔 CRIAR NOTIFICAÇÃO PARA O SOLICITANTE
+    notificacao = {
+        "id": str(uuid.uuid4()),
+        "destinatario_id": req["solicitado_por"],
+        "tipo": "solicitacao_respondida",
+        "titulo": "✅ Solicitação aprovada!" if decision == "aprovado" else "❌ Solicitação negada",
+        "mensagem": (
+            f"Sua solicitação para o aluno {req['aluno_nome']} "
+            f"na turma {req['turma_nome']} em {req['data_chamada']} foi {'aprovada' if decision == 'aprovado' else 'negada'}."
+            + (f" Motivo: {resposta}" if resposta and decision == "negado" else "")
+        ),
+        "lida": False,
+        "request_id": request_id,
+        "created_at": datetime.now(timezone.utc)
+    }
+    await db.notificacoes.insert_one(notificacao)
 
     return {
         "message": f"Solicitação {decision} com sucesso",
@@ -5788,6 +5822,129 @@ async def create_attendance_today(
     hoje = today_iso_date()
     return await create_attendance_for_date(turma_id, hoje, payload, current_user)
 
+
+class ReactivationRequest(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    aluno_id: str
+    aluno_nome: str
+    solicitado_por: str
+    solicitado_por_nome: str
+    motivo: Optional[str] = None
+    status: str = "pendente"
+    admin_resposta: Optional[str] = None
+    respondido_por: Optional[str] = None
+    respondido_por_nome: Optional[str] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: Optional[datetime] = None
+
+@api_router.post("/students/{student_id}/reactivation-request")
+async def solicitar_reativacao(
+    student_id: str,
+    motivo: Optional[str] = None,
+    current_user: UserResponse = Depends(get_current_user)
+):
+    aluno = await db.alunos.find_one({"id": student_id})
+    if not aluno:
+        raise HTTPException(status_code=404, detail="Aluno não encontrado")
+    if aluno.get("status") != "desistente":
+        raise HTTPException(status_code=400, detail="Aluno não está como desistente")
+    existente = await db.reactivation_requests.find_one({
+        "aluno_id": student_id,
+        "status": "pendente"
+    })
+    if existente:
+        raise HTTPException(status_code=400, detail="Já existe uma solicitação pendente para este aluno")
+    doc = ReactivationRequest(
+        aluno_id=student_id,
+        aluno_nome=aluno.get("nome", ""),
+        solicitado_por=current_user.id,
+        solicitado_por_nome=current_user.nome,
+        motivo=motivo
+    )
+    await db.reactivation_requests.insert_one(doc.dict())
+    return {"message": "Solicitação enviada ao administrador", "id": doc.id}
+
+@api_router.get("/reactivation-requests")
+async def listar_solicitacoes_reativacao(
+    status: Optional[str] = None,
+    current_user: UserResponse = Depends(get_current_user)
+):
+    check_admin_permission(current_user)
+    query = {}
+    if status:
+        query["status"] = status
+    docs = await db.reactivation_requests.find(query).sort("created_at", -1).to_list(500)
+    for d in docs:
+        d.pop("_id", None)
+    return docs
+
+@api_router.put("/reactivation-requests/{request_id}/respond")
+async def responder_solicitacao_reativacao(
+    request_id: str,
+    decision: str,
+    resposta: Optional[str] = None,
+    current_user: UserResponse = Depends(get_current_user)
+):
+    check_admin_permission(current_user)
+    if decision not in ["aprovado", "negado"]:
+        raise HTTPException(status_code=400, detail="decision deve ser 'aprovado' ou 'negado'")
+    req = await db.reactivation_requests.find_one({"id": request_id})
+    if not req:
+        raise HTTPException(status_code=404, detail="Solicitação não encontrada")
+    if req.get("status") != "pendente":
+        raise HTTPException(status_code=400, detail="Solicitação já foi respondida")
+    if decision == "aprovado":
+        await db.alunos.update_one(
+            {"id": req["aluno_id"]},
+            {"$set": {"status": "ativo"}}
+        )
+        await db.desistentes.delete_many({"aluno_id": req["aluno_id"]})
+    await db.reactivation_requests.update_one(
+        {"id": request_id},
+        {"$set": {
+            "status": decision,
+            "admin_resposta": resposta,
+            "respondido_por": current_user.id,
+            "respondido_por_nome": current_user.nome,
+            "updated_at": datetime.now(timezone.utc)
+        }}
+    )
+    return {"message": f"Solicitação {decision} com sucesso"}
+
+
+@api_router.get("/notifications/my")
+async def get_my_notifications(
+    apenas_nao_lidas: bool = False,
+    current_user: UserResponse = Depends(get_current_user)
+):
+    query = {"destinatario_id": current_user.id}
+    if apenas_nao_lidas:
+        query["lida"] = False
+    docs = await db.notificacoes.find(query).sort("created_at", -1).to_list(100)
+    for d in docs:
+        d.pop("_id", None)
+    return docs
+
+@api_router.put("/notifications/{notif_id}/read")
+async def marcar_notificacao_lida(
+    notif_id: str,
+    current_user: UserResponse = Depends(get_current_user)
+):
+    await db.notificacoes.update_one(
+        {"id": notif_id, "destinatario_id": current_user.id},
+        {"$set": {"lida": True}}
+    )
+    return {"message": "Notificação marcada como lida"}
+
+@api_router.put("/notifications/read-all")
+async def marcar_todas_lidas(current_user: UserResponse = Depends(get_current_user)):
+    await db.notificacoes.update_many(
+        {"destinatario_id": current_user.id, "lida": False},
+        {"$set": {"lida": True}}
+    )
+    return {"message": "Todas notificações marcadas como lidas"}
+
+    
 # Include the router in the main app
 app.include_router(api_router)
 
