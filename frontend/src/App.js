@@ -1247,6 +1247,118 @@ const AttendanceChangeRequestModal = ({ open, onClose }) => {
 // ============================================================
 // 🛡️ PAINEL ADMIN: Ver e responder solicitações de correção
 // ============================================================
+  const AdminReactivationPanel = () => {
+  const { toast } = useToast();
+  const [requests, setRequests] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [respondingId, setRespondingId] = useState(null);
+  const [resposta, setResposta] = useState("");
+
+  useEffect(() => { fetchRequests(); }, []);
+
+  const fetchRequests = async () => {
+    setLoading(true);
+    try {
+      const res = await axios.get(`${API}/reactivation-requests?status=pendente`);
+      setRequests(Array.isArray(res.data) ? res.data : []);
+    } catch {
+      setRequests([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRespond = async (id, decision) => {
+    try {
+      await axios.put(
+        `${API}/reactivation-requests/${id}/respond?decision=${decision}${resposta ? `&resposta=${encodeURIComponent(resposta)}` : ""}`
+      );
+      toast({
+        title: decision === "aprovado" ? "✅ Aluno reativado!" : "❌ Solicitação negada",
+      });
+      setRespondingId(null);
+      setResposta("");
+      fetchRequests();
+    } catch (err) {
+      toast({ title: "Erro ao responder", variant: "destructive" });
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <RefreshCw className="h-5 w-5 text-green-600" />
+          Solicitações de Reativação de Alunos
+        </CardTitle>
+        <CardDescription>Alunos desistentes que solicitaram retorno ao curso</CardDescription>
+      </CardHeader>
+      <CardContent>
+        {loading ? (
+          <div className="text-center py-8"><RefreshCw className="h-6 w-6 animate-spin mx-auto text-gray-400" /></div>
+        ) : requests.length === 0 ? (
+          <div className="text-center py-8 text-gray-500">
+            <CheckCircle className="h-10 w-10 mx-auto mb-3 text-green-400" />
+            <p>Nenhuma solicitação pendente.</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {requests.map((req) => (
+              <Card key={req.id} className="border-l-4 border-l-green-500">
+                <CardContent className="p-4">
+                  <div className="flex justify-between items-start mb-3">
+                    <div>
+                      <p className="font-semibold text-gray-900">{req.aluno_nome}</p>
+                      <p className="text-sm text-gray-600">Solicitado por: {req.solicitado_por_nome}</p>
+                    </div>
+                    <Badge variant="outline">⏳ Pendente</Badge>
+                  </div>
+                  {req.motivo && (
+                    <div className="p-2 bg-blue-50 border border-blue-100 rounded-lg mb-3">
+                      <p className="text-sm text-blue-700"><strong>Motivo:</strong> {req.motivo}</p>
+                    </div>
+                  )}
+                  <div className="mt-3 pt-3 border-t">
+                    {respondingId === req.id ? (
+                      <div className="space-y-3">
+                        <Textarea
+                          value={resposta}
+                          onChange={(e) => setResposta(e.target.value)}
+                          placeholder="Observação para o professor (opcional)..."
+                          rows={2}
+                        />
+                        <div className="flex gap-2">
+                          <Button size="sm" onClick={() => handleRespond(req.id, "aprovado")} className="bg-green-600 hover:bg-green-700">
+                            <CheckCircle className="h-4 w-4 mr-1" /> Aprovar Reativação
+                          </Button>
+                          <Button size="sm" onClick={() => handleRespond(req.id, "negado")} className="bg-red-600 hover:bg-red-700">
+                            <X className="h-4 w-4 mr-1" /> Negar
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => { setRespondingId(null); setResposta(""); }}>
+                            Cancelar
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <Button size="sm" variant="outline" onClick={() => setRespondingId(req.id)} className="border-green-400 text-green-600 hover:bg-green-50">
+                        <Edit className="h-4 w-4 mr-1" /> Responder
+                      </Button>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+        <div className="mt-4 flex justify-end">
+          <Button variant="outline" size="sm" onClick={fetchRequests}>
+            <RefreshCw className="h-4 w-4 mr-1" /> Atualizar
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
 const AdminChangeRequestsPanel = () => {
   const { toast } = useToast();
   const [requests, setRequests] = useState([]);
@@ -2614,11 +2726,14 @@ const Login = () => {
               </>
             )}
   
-            {user?.tipo === "admin" && (
-              <TabsContent value="solicitacoes">
-                <AdminChangeRequestsPanel />
-              </TabsContent>
-            )}
+              {user?.tipo === "admin" && (
+                <TabsContent value="solicitacoes">
+                  <AdminChangeRequestsPanel />
+                  <div className="mt-6">
+                    <AdminReactivationPanel />
+                  </div>
+                </TabsContent>
+              )}
 
             <TabsContent value="relatorios">
               <RelatoriosManager />
@@ -6257,6 +6372,10 @@ const FrequenciaAlunoPanel = ({ alunoId }) => {
     const [showBulkSummary, setShowBulkSummary] = useState(false);
     const [bulkSummaryData, setBulkSummaryData] = useState(null);
     const [dropoutReasons, setDropoutReasons] = useState([]);
+    const [isReativacaoDialogOpen, setIsReativacaoDialogOpen] = useState(false);
+    const [reativacaoAluno, setReativacaoAluno] = useState(null);
+    const [reativacaoMotivo, setReativacaoMotivo] = useState("");
+    const [reativacaoSaving, setReativacaoSaving] = useState(false);
     const [selectedDropoutReason, setSelectedDropoutReason] = useState("");
   
     const [formData, setFormData] = useState({
@@ -6610,7 +6729,37 @@ const fetchAlunos = async () => {
         });
       }
     };
-    
+      const handleSolicitarReativacao = (aluno) => {
+  setReativacaoAluno(aluno);
+  setReativacaoMotivo("");
+  setIsReativacaoDialogOpen(true);
+};
+
+    const submitReativacao = async () => {
+      setReativacaoSaving(true);
+      try {
+        const params = reativacaoMotivo.trim()
+          ? `?motivo=${encodeURIComponent(reativacaoMotivo)}`
+          : "";
+        await axios.post(`${API}/students/${reativacaoAluno.id}/reactivation-request${params}`);
+        toast({
+          title: "✅ Solicitação enviada!",
+          description: "O administrador receberá a solicitação para reativar o aluno.",
+        });
+        setIsReativacaoDialogOpen(false);
+        setReativacaoAluno(null);
+        setReativacaoMotivo("");
+      } catch (error) {
+        toast({
+          title: "Erro ao enviar solicitação",
+          description: error.response?.data?.detail || "Tente novamente",
+          variant: "destructive",
+        });
+      } finally {
+        setReativacaoSaving(false);
+      }
+    };                     
+        
     const submitAtestado = async () => {
       if (!selectedFile) {
         toast({
@@ -7156,7 +7305,7 @@ const cursoOk = filtroCurso === "todos" ||
                               <Edit className="h-4 w-4" />
                             </Button>
                           )}
-                          {aluno.status === "ativo" && (
+                            {aluno.status === "ativo" && (
                             <Button
                               variant="outline"
                               size="sm"
@@ -7164,9 +7313,20 @@ const cursoOk = filtroCurso === "todos" ||
                               title="Registrar desistência"
                               className="text-red-600 border-red-600 hover:bg-red-50"
                             >
-                              <UserX className="h-4 w-4" />
-                            </Button>
-                          )}
+                                <UserX className="h-4 w-4" />
+                              </Button>
+                            )}
+                            {aluno.status === "desistente" && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleSolicitarReativacao(aluno)}
+                                title="Solicitar reativação"
+                                className="text-green-600 border-green-600 hover:bg-green-50"
+                              >
+                                <RefreshCw className="h-4 w-4" />
+                              </Button>
+                            )}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -7233,9 +7393,49 @@ const cursoOk = filtroCurso === "todos" ||
             </div>
           </DialogContent>
         </Dialog>
-  
-        {/* Dialog para upload de atestado */}
-        <Dialog
+
+          {/* Dialog para solicitar reativação */}
+          <Dialog open={isReativacaoDialogOpen} onOpenChange={setIsReativacaoDialogOpen}>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>Solicitar Reativação de Aluno</DialogTitle>
+                <DialogDescription>
+                  Solicitar reativação de {reativacaoAluno?.nome}. O administrador precisará aprovar.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <Label>Motivo da reativação (opcional)</Label>
+                  <Textarea
+                    value={reativacaoMotivo}
+                    onChange={(e) => setReativacaoMotivo(e.target.value)}
+                    placeholder="Ex: Aluno resolveu os problemas que o levaram a desistir..."
+                    rows={3}
+                  />
+                </div>
+                <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <p className="text-sm text-yellow-800">
+                    ⚠️ O administrador receberá essa solicitação e decidirá se aprova ou nega a reativação.
+                  </p>
+                </div>
+                <div className="flex justify-end space-x-2">
+                  <Button variant="outline" onClick={() => setIsReativacaoDialogOpen(false)} disabled={reativacaoSaving}>
+                    Cancelar
+                  </Button>
+                  <Button onClick={submitReativacao} disabled={reativacaoSaving} className="bg-green-600 hover:bg-green-700">
+                    {reativacaoSaving ? (
+                      <span className="flex items-center gap-2">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        Enviando...
+                      </span>
+                    ) : "📤 Enviar Solicitação"}
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+          {/* Dialog para upload de atestado */}
+          <Dialog
           open={isAtestadoDialogOpen}
           onOpenChange={setIsAtestadoDialogOpen}
         >
