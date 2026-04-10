@@ -240,16 +240,17 @@
     };
   };
   
-  // �👥 NOMENCLATURA UNISSEX - OUT/2024 (Fase 1)
-  const getUserTypeLabel = (tipo) => {
-    const labels = {
-      admin: "Administrador(a)",
-      instrutor: "Professor(a)",
-      pedagogo: "Coord. Pedagógico",
-      monitor: "Assistente",
+  // 👥 NOMENCLATURA UNISSEX - OUT/2024 (Fase 1)
+    const getUserTypeLabel = (tipo) => {
+      const labels = {
+        admin: "Administrador(a)",
+        instrutor: "Professor(a)",
+        pedagogo: "Educador Social",
+        monitor: "Monitor(a)",
+        gestor: "Gestor(a)",
+      };
+      return labels[tipo] || tipo;
     };
-    return labels[tipo] || tipo;
-  };
   
   // 📊 GERADOR CSV COM DADOS PRECISOS - FASE 4
   const gerarCSVComDadosPrecisos = (estatisticasPrecisas, filtrosAplicados) => {
@@ -2726,74 +2727,50 @@ const Login = () => {
               </CardContent>
             </Card>
           )}
-  
-          {/* Management Tabs */}
-          <Tabs defaultValue="turmas" className="w-full">
-            <TabsList className="flex flex-wrap w-full justify-center gap-1 h-auto p-1">
-              <TabsTrigger
-                value="turmas"
-                className="flex-1 min-w-0 text-sm whitespace-nowrap"
-              >
-                Turmas
-              </TabsTrigger>
-              <TabsTrigger
-                value="chamada"
-                className="flex-1 min-w-0 text-sm whitespace-nowrap"
-              >
-                Chamada
-              </TabsTrigger>
-  
-              {/* 🎯 ALUNOS: Disponível para instrutores, pedagogos, monitores e admin */}
-              {["admin", "instrutor", "pedagogo", "monitor"].includes(
-                user?.tipo,
-              ) && (
-                <TabsTrigger
-                  value="alunos"
-                  className="flex-1 min-w-0 text-sm whitespace-nowrap"
-                >
-                  Alunos
-                </TabsTrigger>
-              )}
-  
-              {user?.tipo === "admin" && (
-                <>
-                  <TabsTrigger
-                    value="unidades"
-                    className="flex-1 min-w-0 text-sm whitespace-nowrap"
-                  >
-                    Unidades
+                  {/* Management Tabs */}
+                <Tabs defaultValue={user?.tipo === "gestor" ? "relatorios" : "turmas"} className="w-full">
+                  <TabsList className="flex flex-wrap w-full justify-center gap-1 h-auto p-1">
+                  {user?.tipo !== "gestor" && (
+                    <TabsTrigger value="turmas" className="flex-1 min-w-0 text-sm whitespace-nowrap">
+                      Turmas
+                    </TabsTrigger>
+                  )}
+                  {user?.tipo !== "gestor" && (
+                    <TabsTrigger value="chamada" className="flex-1 min-w-0 text-sm whitespace-nowrap">
+                      Chamada
+                    </TabsTrigger>
+                  )}
+                  {["admin", "instrutor", "pedagogo", "monitor"].includes(user?.tipo) && (
+                    <TabsTrigger value="alunos" className="flex-1 min-w-0 text-sm whitespace-nowrap">
+                      Alunos
+                    </TabsTrigger>
+                  )}
+                  {user?.tipo === "admin" && (
+                    <>
+                      <TabsTrigger value="unidades" className="flex-1 min-w-0 text-sm whitespace-nowrap">
+                        Unidades
+                      </TabsTrigger>
+                      <TabsTrigger value="cursos" className="flex-1 min-w-0 text-sm whitespace-nowrap">
+                        Cursos
+                      </TabsTrigger>
+                      <TabsTrigger value="usuarios" className="flex-1 min-w-0 text-sm whitespace-nowrap">
+                        Usuários
+                      </TabsTrigger>
+                    </>
+                  )}
+                  {user?.tipo === "admin" && (
+                    <TabsTrigger value="solicitacoes" className="flex-1 min-w-0 text-sm whitespace-nowrap">
+                    
+                      Solicitações
+                    </TabsTrigger>
+                  )}
+                  <TabsTrigger value="relatorios" className="flex-1 min-w-0 text-sm whitespace-nowrap">
+                    
+                    Relatórios
                   </TabsTrigger>
-                  <TabsTrigger
-                    value="cursos"
-                    className="flex-1 min-w-0 text-sm whitespace-nowrap"
-                  >
-                    Cursos
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="usuarios"
-                    className="flex-1 min-w-0 text-sm whitespace-nowrap"
-                  >
-                    Usuários
-                  </TabsTrigger>
-                </>
-              )}
-              {user?.tipo === "admin" && (
-                <TabsTrigger
-                  value="solicitacoes"
-                  className="flex-1 min-w-0 text-sm whitespace-nowrap"
-                >
-                  Solicitações
-                </TabsTrigger>
-              )}
-              <TabsTrigger
-                value="relatorios"
-                className="flex-1 min-w-0 text-sm whitespace-nowrap"
-              >
-                Relatórios
-              </TabsTrigger>             
-            </TabsList>
-  
-            <TabsContent value="turmas">
+                </TabsList>
+                    
+              <TabsContent value="turmas">
               <TurmasManager />
             </TabsContent>
   
@@ -5341,7 +5318,7 @@ const UsuariosManager = () => {
       fetchDynamicStats();
   
       // Carregar dados para os filtros se for admin
-      if (user?.tipo === "admin") {
+      if (user?.tipo === "admin" || user?.tipo === "gestor") {
         fetchFilterData();
       }
   
@@ -5448,7 +5425,7 @@ const fetchDadosBasicos = async () => {
         const filtersToUse = customFilters || filtros;
   
         if (
-          user?.tipo === "admin" &&
+          (user?.tipo === "admin" || user?.tipo === "gestor") &&
           (filtersToUse.data_inicio ||
             filtersToUse.data_fim ||
             (filtersToUse.unidade_id && filtersToUse.unidade_id !== "all") ||
@@ -5549,7 +5526,7 @@ const fetchDadosBasicos = async () => {
         
             const params = new URLSearchParams({ export_csv: "true" });
         
-            if (user?.tipo === "admin") {
+            if (user?.tipo === "admin" || user?.tipo === "gestor") {
               if (filtros.data_inicio) params.append("data_inicio", filtros.data_inicio);
               if (filtros.data_fim)    params.append("data_fim",    filtros.data_fim);
               if (filtros.unidade_id && filtros.unidade_id !== "all")
@@ -5695,10 +5672,9 @@ const fetchDadosBasicos = async () => {
                 ? "Relatórios Gerais"
                 : "Estatísticas das Minhas Turmas"}
             </div>
-            <div className="flex items-center gap-2">
-              {user?.tipo === "admin" && (
-                <Button
-                  onClick={() => setShowFilters(!showFilters)}
+            <div className="flex items-center gap-2">{(user?.tipo === "admin" || user?.tipo === "gestor") && (
+              <Button
+                onClick={() => setShowFilters(!showFilters)}
                   variant="outline"
                   size="sm"
                   className="text-orange-600 border-orange-600 hover:bg-orange-50"
@@ -5738,7 +5714,7 @@ const fetchDadosBasicos = async () => {
         </CardHeader>
   
         {/* 🔍 FILTROS AVANÇADOS PARA ADMIN */}
-        {user?.tipo === "admin" && showFilters && (
+        {(user?.tipo === "admin" || user?.tipo === "gestor") && showFilters && (
           <div className="mx-6 mb-4 p-4 bg-gray-50 border rounded-lg">
             <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
               <div className="space-y-2">
