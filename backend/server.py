@@ -5932,20 +5932,35 @@ async def create_attendance_for_date(
     }
     
     try:
-        # Inserir com chave única (turma_id, data)
-        # IMPORTANTE: Criar índice único no MongoDB primeiro!
         res = await db.attendances.insert_one(doc)
-        
-        # Log para auditoria
+    
+        # Salvar observações de falta como justificativas
+        for record in payload.records:
+            nota = getattr(record, "nota", None) or ""
+            if not record.presente and nota.strip():
+                justification_data = {
+                    "id": str(uuid.uuid4()),
+                    "student_id": record.aluno_id,
+                    "attendance_id": doc["id"],
+                    "uploaded_by": current_user.id,
+                    "uploaded_by_name": current_user.nome,
+                    "uploaded_at": datetime.now(timezone.utc),
+                    "reason_code": "CUSTOM",
+                    "reason_text": nota.strip(),
+                    "status": "registered",
+                    "visible_to_student": True,
+                    "created_at": datetime.now(timezone.utc)
+                }
+                await db.justifications.insert_one(justification_data)
+    
         print(f"✅ Chamada criada: turma={turma_id}, data={data_iso}, by={current_user.id}")
-        
+    
         return {
             "id": doc["id"],
             "message": "Chamada salva com sucesso",
             "data": data_iso,
             "turma_id": turma_id
-        }
-        
+        }        
     except DuplicateKeyError:
         # Já existe uma chamada para essa turma/data
         print(f"⚠️ Tentativa de criar chamada duplicada: turma={turma_id}, data={data_iso}")
