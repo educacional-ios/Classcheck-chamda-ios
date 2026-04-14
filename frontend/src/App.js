@@ -680,6 +680,7 @@
         const recordsToSend = records.map((r) => ({
           aluno_id: r.aluno_id,
           presente: r.presente,
+          nota: r.nota || "",
         }));
   
         // Usar endpoint com data específica para permitir chamadas retroativas
@@ -781,23 +782,30 @@
                         : "bg-red-50 border-red-200"
                     }`}
                   >
-                    <span className="font-medium">{record.nome}</span>
+                    <span className="font-medium">{record.nome}</span><div className="flex flex-col gap-1 items-end">
                     <div className="flex items-center space-x-2">
                       <Checkbox
                         checked={record.presente}
                         onCheckedChange={() => togglePresence(index)}
                       />
-                      <span
-                        className={`text-sm font-medium ${
-                          record.presente ? "text-green-700" : "text-red-700"
-                        }`}
-                      >
+                      <span className={`text-sm font-medium ${record.presente ? "text-green-700" : "text-red-700"}`}>
                         {record.presente ? "Presente" : "Ausente"}
                       </span>
                     </div>
+                    {!record.presente && (
+                      <input
+                        type="text"
+                        placeholder="Observação (opcional)"
+                        value={record.nota || ""}
+                        onChange={(e) => {
+                          const newRecords = [...records];
+                          newRecords[index].nota = e.target.value;
+                          setRecords(newRecords);
+                        }}
+                        className="text-xs border rounded px-2 py-1 w-48 text-gray-600"
+                      />
+                    )}
                   </div>
-                ))}
-            </div>
   
             {/* Observações */}
             <div className="space-y-2">
