@@ -2745,7 +2745,7 @@ const Login = () => {
                       Chamada
                     </TabsTrigger>
                   )}
-                  {["admin", "instrutor", "pedagogo", "monitor"].includes(user?.tipo) && (
+                  {["admin", "instrutor", "pedagogo", "monitor","gestor"].includes(user?.tipo) && (
                     <TabsTrigger value="alunos" className="flex-1 min-w-0 text-sm whitespace-nowrap">
                       Alunos
                     </TabsTrigger>
