@@ -926,7 +926,7 @@ async def change_password(password_reset: PasswordReset, current_user: UserRespo
 # USER MANAGEMENT ROUTES
 @api_router.post("/users", response_model=UserResponse)
 async def create_user(user_create: UserCreate, current_user: UserResponse = Depends(get_current_user)):
-    check_admin_permission(current_user)
+    
     
     # Check if user already exists
     existing_user = await db.usuarios.find_one({"email": user_create.email})
