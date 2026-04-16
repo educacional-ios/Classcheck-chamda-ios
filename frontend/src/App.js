@@ -1,3 +1,8 @@
+
+Conteúdo colado
+331.90 KB •8.981 linhas
+•
+A formatação pode estar inconsistente com a fonte
   // ClassCheck - Sistema de Chamada IOS (v1.1)
   import React, { useState, useEffect } from "react";
   import "./App.css";
@@ -770,7 +775,6 @@
               </div>
             </div>
   
-
             {/* Lista de Alunos */}
             <div className="space-y-2 max-h-64 overflow-y-auto">
               {Array.isArray(records) &&
@@ -783,36 +787,31 @@
                         : "bg-red-50 border-red-200"
                     }`}
                   >
-                    <span className="font-medium">{record.nome}</span>
-                    <div className="flex flex-col gap-1 items-end">
-                      <div className="flex items-center space-x-2">
-                        <Checkbox
-                          checked={record.presente}
-                          onCheckedChange={() => togglePresence(index)}
-                        />
-                        <span className={`text-sm font-medium ${record.presente ? "text-green-700" : "text-red-700"}`}>
-                          {record.presente ? "Presente" : "Ausente"}
-                        </span>
-                      </div>
-                      {!record.presente && (
-                        <input
-                          type="text"
-                          placeholder="Observação (opcional)"
-                          value={record.nota || ""}
-                          onChange={(e) => {
-                            const newRecords = [...records];
-                            newRecords[index].nota = e.target.value;
-                            setRecords(newRecords);
-                          }}
-                          className="text-xs border rounded px-2 py-1 w-48 text-gray-600"
-                        />
-                      )}
+                    <span className="font-medium">{record.nome}</span><div className="flex flex-col gap-1 items-end">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        checked={record.presente}
+                        onCheckedChange={() => togglePresence(index)}
+                      />
+                      <span className={`text-sm font-medium ${record.presente ? "text-green-700" : "text-red-700"}`}>
+                        {record.presente ? "Presente" : "Ausente"}
+                      </span>
                     </div>
+                    {!record.presente && (
+                      <input
+                        type="text"
+                        placeholder="Observação (opcional)"
+                        value={record.nota || ""}
+                        onChange={(e) => {
+                          const newRecords = [...records];
+                          newRecords[index].nota = e.target.value;
+                          setRecords(newRecords);
+                        }}
+                        className="text-xs border rounded px-2 py-1 w-48 text-gray-600"
+                      />
+                    )}
                   </div>
-                ))}
-            </div>
-
-
+  
             {/* Observações */}
             <div className="space-y-2">
               <Label>Observações da Aula (opcional)</Label>
@@ -823,7 +822,7 @@
                 rows={3}
               />
             </div>
-
+  
             {/* Confirmação */}
             {showConfirm && (
               <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
@@ -836,7 +835,7 @@
                 </p>
               </div>
             )}
-
+  
             {/* Botões */}
             <div className="flex justify-end space-x-2 pt-4">
               <Button variant="outline" onClick={onClose} disabled={saving}>
@@ -863,10 +862,11 @@
                 )}
               </Button>
             </div>
-            </div>
-      </DialogContent>
-    </Dialog>
-  );
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  };
   
   // 🚀 COMPONENTE: Card de Chamada Pendente
   const PendingAttendanceCard = ({ turma, onComplete }) => {
