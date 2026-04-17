@@ -7836,6 +7836,7 @@
                             </TableRow>
                         ))}
                       </Table>
+                      </TableBody>
                         </div>
                       </CardContent>
   
