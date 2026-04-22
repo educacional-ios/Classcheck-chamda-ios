@@ -989,6 +989,8 @@
       status_solicitado: "",
       motivo: "",
       tipo: "alteracao_presenca",
+      atestado_inicio: "",
+      atestado_fim: "",
     });
   
     useEffect(() => {
@@ -1052,6 +1054,8 @@
         fd.append("motivo", form.motivo);
         fd.append("tipo", form.tipo);
         if (selectedFile) fd.append("file", selectedFile);
+        if (form.atestado_inicio) fd.append("data_inicio", form.atestado_inicio);
+        if (form.atestado_fim) fd.append("data_fim", form.atestado_fim);
   
         await axios.post(`${API}/attendance-change-requests`, fd, {
           headers: { "Content-Type": "multipart/form-data" },
@@ -1070,6 +1074,8 @@
           status_solicitado: "",
           motivo: "",
           tipo: "alteracao_presenca",
+          atestado_inicio: "",
+          atestado_fim: "",
         });
         setSelectedFile(null);
         onClose();
@@ -1213,8 +1219,7 @@
                 rows={3}
               />
             </div>
-  
-            {/* Documento */}
+  {/* Documento */}
             <div className="space-y-2">
               <Label>Documento comprobatório (opcional)</Label>
               <Input
@@ -1225,8 +1230,40 @@
               <p className="text-xs text-gray-500">
                 Atestado, declaração ou outro documento — PDF, JPG, PNG (máx. 5MB)
               </p>
+              <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg space-y-3">
+                <p className="text-sm font-medium text-blue-800 flex items-center gap-1">
+                  <Calendar className="h-4 w-4" /> Período do Atestado (opcional)
+                </p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs text-blue-700">Data início</Label>
+                    <Input
+                      type="date"
+                      value={form.atestado_inicio || ""}
+                      max={new Date().toISOString().split("T")[0]}
+                      onChange={(e) => setForm(f => ({ ...f, atestado_inicio: e.target.value }))}
+                      className="h-8 text-sm"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-blue-700">Data fim</Label>
+                    <Input
+                      type="date"
+                      value={form.atestado_fim || ""}
+                      min={form.atestado_inicio || ""}
+                      max={new Date().toISOString().split("T")[0]}
+                      onChange={(e) => setForm(f => ({ ...f, atestado_fim: e.target.value }))}
+                      className="h-8 text-sm"
+                    />
+                  </div>
+                </div>
+                {form.atestado_inicio && form.atestado_fim && (
+                  <p className="text-xs text-blue-600">
+                    📅 {new Date(form.atestado_inicio + "T00:00:00").toLocaleDateString("pt-BR")} até {new Date(form.atestado_fim + "T00:00:00").toLocaleDateString("pt-BR")}
+                  </p>
+                )}
+              </div>
             </div>
-  
             {/* Aviso */}
             <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
               <p className="text-sm text-yellow-800">
