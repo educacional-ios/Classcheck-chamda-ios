@@ -643,8 +643,8 @@
     const [showConfirm, setShowConfirm] = useState(false);
   
     // Inicializar todos os alunos como presentes
-    const [records, setRecords] = useState(
-      turma?.alunos?.map((aluno) => ({
+        const [records, setRecords] = useState(
+          turma?.alunos?.filter((a) => a.status !== "desistente").map((aluno) => ({
         aluno_id: aluno.id,
         nome:
           aluno.nome_social ||
@@ -657,10 +657,12 @@
   
     // Atualizar records quando turma mudar
     useEffect(() => {
-      if (turma?.alunos) {
-        setRecords(
-          turma.alunos.map((aluno) => ({
-            aluno_id: aluno.id,
+  if (turma?.alunos) {
+    setRecords(
+      turma.alunos
+        .filter((aluno) => aluno.status !== "desistente")
+        .map((aluno) => ({
+          aluno_id: aluno.id,
             nome:
               aluno.nome_social ||
               aluno.nome ||
@@ -2968,6 +2970,7 @@
       useState(false);
     const [selectedAlunoAtestado, setSelectedAlunoAtestado] = useState(null);
     const [selectedFileAtestado, setSelectedFileAtestado] = useState(null);
+    const [atestadoPeriodo, setAtestadoPeriodo] = useState({ inicio: "", fim: "" });
   
     // Estados para modal de justificativa
     const [isChangeRequestOpen, setIsChangeRequestOpen] = useState(false);
@@ -3111,7 +3114,9 @@
         console.log("Alunos response:", response.data);
   
         // Garantir que response.data é um array
-        const alunosData = Array.isArray(response.data) ? response.data : [];
+        const alunosData = Array.isArray(response.data)
+          ? response.data.filter((a) => a.status !== "desistente")
+          : [];
         setAlunos(alunosData);
   
         // Initialize presencas with all students present by default
@@ -3181,6 +3186,7 @@
     const handleUploadAtestadoChamada = (aluno) => {
       setSelectedAlunoAtestado(aluno);
       setSelectedFileAtestado(null);
+      setAtestadoPeriodo({ inicio: "", fim: "" });
       setIsAtestadoChamadaDialogOpen(true);
     };
   
@@ -3199,7 +3205,9 @@
         formData.append("file", selectedFileAtestado);
         formData.append("aluno_id", selectedAlunoAtestado.id);
         formData.append("tipo", "atestado_medico");
-  
+        if (atestadoPeriodo.inicio) formData.append("data_inicio", atestadoPeriodo.inicio);
+        if (atestadoPeriodo.fim) formData.append("data_fim", atestadoPeriodo.fim);
+          
         const response = await axios.post(`${API}/upload/atestado`, formData, {
           headers: {
             "Content-Type": "multipart/form-data",
@@ -3629,9 +3637,43 @@
                 <p className="text-sm text-gray-500 mt-1">
                   Formatos aceitos: PDF, JPG, PNG (máx. 5MB)
                 </p>
+                <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg space-y-3">
+                  <p className="text-sm font-medium text-blue-800 flex items-center gap-1">
+                    <Calendar className="h-4 w-4" /> Período do Atestado (opcional)
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-xs text-blue-700">Data início</Label>
+                      <Input
+                        type="date"
+                        value={atestadoPeriodo.inicio}
+                        max={new Date().toISOString().split("T")[0]}
+                        onChange={(e) => setAtestadoPeriodo(p => ({ ...p, inicio: e.target.value }))}
+                        className="h-8 text-sm"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs text-blue-700">Data fim</Label>
+                      <Input
+                        type="date"
+                        value={atestadoPeriodo.fim}
+                        min={atestadoPeriodo.inicio}
+                        max={new Date().toISOString().split("T")[0]}
+                        onChange={(e) => setAtestadoPeriodo(p => ({ ...p, fim: e.target.value }))}
+                        className="h-8 text-sm"
+                      />
+                    </div>
+                  </div>
+                  {atestadoPeriodo.inicio && atestadoPeriodo.fim && (
+                    <p className="text-xs text-blue-600">
+                      📅 {new Date(atestadoPeriodo.inicio + "T00:00:00").toLocaleDateString("pt-BR")} até {new Date(atestadoPeriodo.fim + "T00:00:00").toLocaleDateString("pt-BR")}
+                    </p>
+                  )}
+                </div>
               </div>
               <div className="flex justify-end space-x-2">
-                <Button
+                  
+                  <Button
                   variant="outline"
                   onClick={() => setIsAtestadoChamadaDialogOpen(false)}
                 >
@@ -6780,6 +6822,7 @@
     const [selectedAluno, setSelectedAluno] = useState(null);
     const [dropoutReason, setDropoutReason] = useState("");
     const [selectedFile, setSelectedFile] = useState(null);
+    const [atestadoPeriodoAluno, setAtestadoPeriodoAluno] = useState({ inicio: "", fim: "" });
     const [turmas, setTurmas] = useState([]);
   
     // Estados para visualização detalhada do aluno
@@ -7114,6 +7157,7 @@
     const handleUploadAtestado = (aluno) => {
       setSelectedAluno(aluno);
       setSelectedFile(null);
+      setAtestadoPeriodoAluno({ inicio: "", fim: "" });
       setIsAtestadoDialogOpen(true);
     };
   
@@ -7237,6 +7281,8 @@
         formData.append("file", selectedFile);
         formData.append("aluno_id", selectedAluno.id);
         formData.append("tipo", "atestado_medico");
+        if (atestadoPeriodoAluno.inicio) formData.append("data_inicio", atestadoPeriodoAluno.inicio);
+        if (atestadoPeriodoAluno.fim) formData.append("data_fim", atestadoPeriodoAluno.fim);
   
         await axios.post(`${API}/upload/atestado`, formData, {
           headers: {
@@ -7965,8 +8011,7 @@
               <DialogDescription>
                 Enviar atestado médico para {selectedAluno?.nome}
               </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
+            </DialogHeader><div className="space-y-4">
               <div>
                 <Label>Arquivo do atestado *</Label>
                 <Input
@@ -7977,6 +8022,39 @@
                 <p className="text-sm text-gray-500 mt-1">
                   Formatos aceitos: PDF, JPG, PNG (máx. 5MB)
                 </p>
+                <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg space-y-3">
+                  <p className="text-sm font-medium text-blue-800 flex items-center gap-1">
+                    <Calendar className="h-4 w-4" /> Período do Atestado (opcional)
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-xs text-blue-700">Data início</Label>
+                      <Input
+                        type="date"
+                        value={atestadoPeriodoAluno.inicio}
+                        max={new Date().toISOString().split("T")[0]}
+                        onChange={(e) => setAtestadoPeriodoAluno(p => ({ ...p, inicio: e.target.value }))}
+                        className="h-8 text-sm"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs text-blue-700">Data fim</Label>
+                      <Input
+                        type="date"
+                        value={atestadoPeriodoAluno.fim}
+                        min={atestadoPeriodoAluno.inicio}
+                        max={new Date().toISOString().split("T")[0]}
+                        onChange={(e) => setAtestadoPeriodoAluno(p => ({ ...p, fim: e.target.value }))}
+                        className="h-8 text-sm"
+                      />
+                    </div>
+                  </div>
+                  {atestadoPeriodoAluno.inicio && atestadoPeriodoAluno.fim && (
+                    <p className="text-xs text-blue-600">
+                      📅 Período: {new Date(atestadoPeriodoAluno.inicio + "T00:00:00").toLocaleDateString("pt-BR")} até {new Date(atestadoPeriodoAluno.fim + "T00:00:00").toLocaleDateString("pt-BR")}
+                    </p>
+                  )}
+                </div>
               </div>
               <div className="flex justify-end space-x-2">
                 <Button
