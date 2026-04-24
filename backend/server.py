@@ -316,6 +316,7 @@ class UserResponse(BaseModel):
     curso_id: Optional[str] = None
     unidade_nome: Optional[str] = None
     curso_nome: Optional[str] = None
+    titulo_personalizado: Optional[str] = None
 
 class FirstAccessRequest(BaseModel):
     nome: str
@@ -1459,8 +1460,14 @@ async def get_alunos(
         else:
             print("👩‍💻 Monitor: nenhum aluno nas turmas da unidade")
             return []
+        
+    elif current_user.tipo == "gestor":
+        print("👁️ Gestor visualizando todos os alunos")
+        query = {}
+        if status:
+            query["status"] = status
+        
     else:
-        # Outros tipos de usuário não podem ver alunos
         print(f"❌ Tipo de usuário {current_user.tipo} não autorizado")
         return []
         
