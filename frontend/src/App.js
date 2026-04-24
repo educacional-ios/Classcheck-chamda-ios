@@ -3932,6 +3932,7 @@
             // O backend aceita ambos os formatos (singular + array)
             unidade_ids: formData.unidade_ids,
             curso_ids: formData.curso_ids,
+            titulo_personalizado: formData.titulo_personalizado,
           });
           toast({
             title: "Usuário atualizado com sucesso!",
