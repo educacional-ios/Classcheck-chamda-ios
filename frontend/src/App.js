@@ -2616,7 +2616,7 @@
                 <SolicitacaoNotifBell />
                 <NotificationButton />
   
-                <Badge variant="outline">{getUserTypeLabel(user?.tipo)}</Badge>
+                <Badge variant="outline">{user?.titulo_personalizado || getUserTypeLabel(user?.tipo)}</Badge>
                 <span className="text-sm text-gray-700">{user?.nome}</span>
                 <Button
                   variant="ghost"
@@ -2642,16 +2642,17 @@
                 <div>
                   <h3 className="font-semibold text-gray-900">
                     {stats.tipo_usuario ||
-                      user?.tipo?.charAt(0).toUpperCase() + user?.tipo?.slice(1)}
+                      user?.titulo_personalizado ||
+                      getUserTypeLabel(user?.tipo)}
                   </h3>
                   <div className="flex items-center gap-4 text-sm text-gray-600">
                     <span>
                       <Building2 className="h-4 w-4 inline mr-1" />
-                      {stats.unidade_nome || "Sua unidade"}
+                      {stats.unidade_nome || user?.unidade_nome || "Sua unidade"}
                     </span>
                     <span>
                       <BookOpen className="h-4 w-4 inline mr-1" />
-                      {stats.curso_nome || "Seu curso"}
+                      {stats.curso_nome || user?.curso_nome || "Seu curso"}
                     </span>
                   </div>
                 </div>
@@ -7668,7 +7669,7 @@
             <div className="mt-2 text-sm text-orange-700">
               <p>
                 • <strong>Tipo:</strong>{" "}
-                {user.tipo?.charAt(0).toUpperCase() + user.tipo?.slice(1)}
+                {user?.titulo_personalizado || getUserTypeLabel(user?.tipo)}
               </p>
               <p>
                 • <strong>Unidade:</strong> {user?.unidade_nome || "Sua unidade"}
