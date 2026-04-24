@@ -300,6 +300,7 @@ class UserUpdate(BaseModel):
     curso_id: Optional[str] = None
     unidade_ids: Optional[List[str]] = None   # ← NOVO -- 27/03/2026
     curso_ids: Optional[List[str]] = None     # ← NOVO -- 27/03/2026
+    titulo_personalizado: Optional[str] = None
 
 class UserLogin(BaseModel):
     email: EmailStr
