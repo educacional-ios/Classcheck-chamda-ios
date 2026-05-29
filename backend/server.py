@@ -820,7 +820,7 @@ async def user_can_manage_student(current_user: UserResponse, student_id: str) -
     
     if current_user.tipo == "instrutor":
         # Verificar se aluno está em alguma turma do instrutor
-        turmas_instrutor = await db.turmas.find({"instrutor_ids": current_user.id}).to_list(1000)
+        turmas_instrutor = await db.turmas.find({"instrutor_ids": current_user.id}).to_list(20000)
         for turma in turmas_instrutor:
             if student_id in turma.get("alunos_ids", []):
                 return True
@@ -835,7 +835,7 @@ async def user_can_manage_student(current_user: UserResponse, student_id: str) -
         if getattr(current_user, 'curso_id', None):
             query["curso_id"] = getattr(current_user, 'curso_id', None)
             
-        turmas_pedagogo = await db.turmas.find(query).to_list(1000)
+        turmas_pedagogo = await db.turmas.find(query).to_list(20000)
         for turma in turmas_pedagogo:
             if student_id in turma.get("alunos_ids", []):
                 return True
@@ -843,7 +843,7 @@ async def user_can_manage_student(current_user: UserResponse, student_id: str) -
     
     if current_user.tipo == "monitor":
         # Verificar se aluno está em turmas que o monitor acompanha
-        turmas_monitor = await db.turmas.find({"monitor_id": current_user.id}).to_list(1000)
+        turmas_monitor = await db.turmas.find({"monitor_id": current_user.id}).to_list(20000)
         for turma in turmas_monitor:
             if student_id in turma.get("alunos_ids", []):
                 return True
@@ -1188,7 +1188,7 @@ async def create_unidade(unidade_create: UnidadeCreate, current_user: UserRespon
 
 @api_router.get("/units", response_model=List[Unidade])
 async def get_unidades(current_user: UserResponse = Depends(get_current_user)):
-    unidades = await db.unidades.find({"ativo": True}).to_list(1000)
+    unidades = await db.unidades.find({"ativo": True}).to_list(20000)
     return [Unidade(**unidade) for unidade in unidades]
 
 @api_router.put("/units/{unidade_id}", response_model=Unidade)
@@ -1227,7 +1227,7 @@ async def create_curso(curso_create: CursoCreate, current_user: UserResponse = D
 
 @api_router.get("/courses", response_model=List[Curso])
 async def get_cursos(current_user: UserResponse = Depends(get_current_user)):
-    cursos = await db.cursos.find({"ativo": True}).to_list(1000)
+    cursos = await db.cursos.find({"ativo": True}).to_list(20000)
     return [Curso(**curso) for curso in cursos]
 
 @api_router.get("/users/{user_id}/details")
@@ -1390,7 +1390,7 @@ async def get_alunos(
                 {"instrutor_ids": current_user.id}
             ],
             "ativo": True
-        }).to_list(1000)
+        }).to_list(20000)
         
         print(f"🔍 Instrutor {current_user.email} leciona {len(turmas_instrutor)} turmas")
         
@@ -1418,7 +1418,7 @@ async def get_alunos(
         turmas_unidade = await db.turmas.find({
             "unidade_id": getattr(current_user, 'unidade_id', None),
             "ativo": True
-        }).to_list(1000)
+        }).to_list(20000)
         
         # Coletar IDs de todos os alunos da unidade
         aluno_ids = set()
@@ -1442,7 +1442,7 @@ async def get_alunos(
         turmas_unidade = await db.turmas.find({
             "unidade_id": getattr(current_user, 'unidade_id', None),
             "ativo": True
-        }).to_list(1000)
+        }).to_list(20000)
         
         print(f"🔍 Monitor {current_user.email} da unidade {getattr(current_user, 'unidade_id', None)}")
         print(f"   Turmas na unidade: {len(turmas_unidade)}")
@@ -1602,7 +1602,7 @@ async def fix_alunos_created_by(current_user: UserResponse = Depends(get_current
                 {"created_by": ""}
             ],
             "ativo": True
-        }).to_list(1000)
+        }).to_list(20000)
         
         print(f"🔍 Encontrados {len(alunos_sem_created_by)} alunos sem created_by")
         
@@ -1614,14 +1614,14 @@ async def fix_alunos_created_by(current_user: UserResponse = Depends(get_current
             }
         
         # 2. Buscar todas as turmas ativas
-        turmas = await db.turmas.find({"ativo": True}).to_list(1000)
+        turmas = await db.turmas.find({"ativo": True}).to_list(20000)
         turmas_dict = {turma["id"]: turma for turma in turmas}
         
         # 3. Buscar instrutores para cada turma
         instrutores = await db.usuarios.find({
             "tipo": "instrutor",
             "status": "ativo"
-        }).to_list(1000)
+        }).to_list(20000)
         instrutores_dict = {instrutor["id"]: instrutor for instrutor in instrutores}
         
         detalhes = []
@@ -1759,7 +1759,7 @@ async def debug_students_for_user(user_id: str, current_user: UserResponse = Dep
         return {"error": "Usuário não encontrado"}
     
     # Buscar TODOS os alunos
-    todos_alunos = await db.alunos.find({}).to_list(1000)
+    todos_alunos = await db.alunos.find({}).to_list(20000)
     
     # Filtrar por created_by
     alunos_created_by = [a for a in todos_alunos if a.get("created_by") == user_id]
@@ -2345,11 +2345,11 @@ async def import_students_csv(
     }
     
     # Buscar cursos e turmas para validação
-    cursos = await db.cursos.find({}).to_list(1000)
+    cursos = await db.cursos.find({}).to_list(20000)
     cursos_dict = {curso['nome']: curso for curso in cursos}
     
     # Buscar turmas do usuário para validação de permissões
-    turmas = await db.turmas.find({}).to_list(1000)
+    turmas = await db.turmas.find({}).to_list(20000)
     turmas_dict = {}
     for turma in turmas:
         key = f"{turma.get('curso_id', '')}_{turma['nome']}"
@@ -2593,7 +2593,7 @@ async def create_turma(turma_create: TurmaCreate, current_user: UserResponse = D
 @api_router.get("/classes", response_model=List[Turma])
 async def get_turmas(current_user: UserResponse = Depends(get_current_user)):
     if current_user.tipo == "admin":
-        turmas_raw = await db.turmas.find({"ativo": True}).to_list(1000)
+        turmas_raw = await db.turmas.find({"ativo": True}).to_list(20000)
         # Processar turmas admin e garantir compatibilidade
         result_turmas = []
         for turma in turmas_raw:
@@ -2642,7 +2642,7 @@ async def get_turmas(current_user: UserResponse = Depends(get_current_user)):
             if current_user.tipo == "pedagogo":
                 query["tipo_turma"] = "extensao"
         
-        turmas = await db.turmas.find(query).to_list(1000)
+        turmas = await db.turmas.find(query).to_list(20000)
     
     # Processar turmas e garantir compatibilidade com dados antigos
     result_turmas = []
@@ -2993,7 +2993,7 @@ async def create_chamada(chamada_create: ChamadaCreate, current_user: UserRespon
 @api_router.get("/classes/{turma_id}/attendance", response_model=List[Chamada])
 async def get_chamadas_turma(turma_id: str, current_user: UserResponse = Depends(get_current_user)):
     # 🎯 CORREÇÃO CRÍTICA: Usar collection 'attendances' (não 'chamadas')
-    chamadas = await db.attendances.find({"turma_id": turma_id}).to_list(1000)
+    chamadas = await db.attendances.find({"turma_id": turma_id}).to_list(20000)
     return [Chamada(**parse_from_mongo(chamada)) for chamada in chamadas]
 
 @api_router.get("/classes/{turma_id}/students")
@@ -3026,7 +3026,7 @@ async def get_turma_students(
         "id": {"$in": aluno_ids},
         "ativo": True,
         "status": {"$ne": "desistente"}
-    }).to_list(1000)
+    }).to_list(20000)
 
     result = []
     for aluno in alunos:
@@ -3348,7 +3348,7 @@ class MotivoDesistenciaUpdate(BaseModel):
 
 @api_router.get("/dropout-reasons")
 async def get_dropout_reasons(current_user: UserResponse = Depends(get_current_user)):
-    motivos = await db.motivos_desistencia.find({"ativo": True}).sort("descricao", 1).to_list(1000)
+    motivos = await db.motivos_desistencia.find({"ativo": True}).sort("descricao", 1).to_list(20000)
     for m in motivos:
         m.pop("_id", None)
     return motivos
@@ -3356,7 +3356,7 @@ async def get_dropout_reasons(current_user: UserResponse = Depends(get_current_u
 @api_router.get("/dropout-reasons/all")
 async def get_all_dropout_reasons(current_user: UserResponse = Depends(get_current_user)):
     check_admin_permission(current_user)
-    motivos = await db.motivos_desistencia.find({}).sort("descricao", 1).to_list(1000)
+    motivos = await db.motivos_desistencia.find({}).sort("descricao", 1).to_list(20000)
     for m in motivos:
         m.pop("_id", None)
     return motivos
@@ -3414,7 +3414,7 @@ async def create_desistente(desistente_create: DesistenteCreate, current_user: U
         turmas_aluno = await db.turmas.find({
             "alunos_ids": desistente_create.aluno_id,
             "ativo": True
-        }).to_list(1000)
+        }).to_list(20000)
         
         # Verificar permissões baseadas no tipo de usuário
         tem_permissao = False
@@ -3676,7 +3676,7 @@ async def get_student_justifications(
         )
     
     # Buscar justificativas
-    justifications = await db.justifications.find({"student_id": student_id}).to_list(1000)
+    justifications = await db.justifications.find({"student_id": student_id}).to_list(20000)
     
     # Converter para response model
     response_list = []
@@ -3882,7 +3882,7 @@ async def get_attendance_report(
                 {"instrutor_ids": current_user.id}
             ],
             "tipo_turma": "regular"
-        }).to_list(1000)
+        }).to_list(20000)
         turmas_ids = [turma["id"] for turma in turmas_instrutor]
         
         if turmas_ids:
@@ -3899,7 +3899,7 @@ async def get_attendance_report(
         if getattr(current_user, 'unidade_id', None):
             turmas_query["unidade_id"] = getattr(current_user, 'unidade_id', None)
             
-        turmas_permitidas = await db.turmas.find(turmas_query).to_list(1000)
+        turmas_permitidas = await db.turmas.find(turmas_query).to_list(20000)
         turmas_ids = [turma["id"] for turma in turmas_permitidas]
         
         if turmas_ids:
@@ -3916,7 +3916,7 @@ async def get_attendance_report(
         if getattr(current_user, 'unidade_id', None):
             turmas_query["unidade_id"] = getattr(current_user, 'unidade_id', None)
             
-        turmas_permitidas = await db.turmas.find(turmas_query).to_list(1000)
+        turmas_permitidas = await db.turmas.find(turmas_query).to_list(20000)
         turmas_ids = [turma["id"] for turma in turmas_permitidas]
         
         if turmas_ids:
@@ -3946,7 +3946,7 @@ async def get_attendance_report(
             if curso_id:
                 turmas_query["curso_id"] = curso_id
                 
-            turmas = await db.turmas.find(turmas_query).to_list(1000)
+            turmas = await db.turmas.find(turmas_query).to_list(20000)
             turmas_ids = [turma["id"] for turma in turmas]
             
             if turmas_ids:
@@ -3964,7 +3964,7 @@ async def get_attendance_report(
         query["data"] = {"$lte": data_fim.isoformat()}
     
     # 🎯 CORREÇÃO CRÍTICA: Usar collection 'attendances' (não 'chamadas')
-    chamadas = await db.attendances.find(query).to_list(1000)
+    chamadas = await db.attendances.find(query).to_list(20000)
     
     if export_csv:
         # 🚨 ANTI-TIMEOUT: Use StreamingResponse para evitar 504 Gateway Timeout
@@ -4011,7 +4011,7 @@ async def generate_csv_background(
                     {"instrutor_ids": current_user.id}
                 ],
                 "tipo_turma": "regular"
-            }).to_list(1000)
+            }).to_list(20000)
             turmas_ids = [turma["id"] for turma in turmas_instrutor]
             if turmas_ids:
                 query["turma_id"] = {"$in": turmas_ids}
@@ -4497,7 +4497,7 @@ async def get_student_frequency_report(
                         {"instrutor_ids": current_user.id}
                     ],
                     "tipo_turma": "regular"
-                }).to_list(1000)
+                }).to_list(20000)
         turmas_ids = [turma["id"] for turma in turmas_instrutor]
         
         if turmas_ids:
@@ -4512,7 +4512,7 @@ async def get_student_frequency_report(
         if getattr(current_user, 'unidade_id', None):
             turmas_query["unidade_id"] = getattr(current_user, 'unidade_id', None)
             
-        turmas_permitidas = await db.turmas.find(turmas_query).to_list(1000)
+        turmas_permitidas = await db.turmas.find(turmas_query).to_list(20000)
         turmas_ids = [turma["id"] for turma in turmas_permitidas]
         
         if turmas_ids:
@@ -4527,7 +4527,7 @@ async def get_student_frequency_report(
         if getattr(current_user, 'unidade_id', None):
             turmas_query["unidade_id"] = getattr(current_user, 'unidade_id', None)
             
-        turmas_permitidas = await db.turmas.find(turmas_query).to_list(1000)
+        turmas_permitidas = await db.turmas.find(turmas_query).to_list(20000)
         turmas_ids = [turma["id"] for turma in turmas_permitidas]
         
         if turmas_ids:
@@ -4544,7 +4544,7 @@ async def get_student_frequency_report(
             if curso_id:
                 turmas_query["curso_id"] = curso_id
                 
-            turmas = await db.turmas.find(turmas_query).to_list(1000)
+            turmas = await db.turmas.find(turmas_query).to_list(20000)
             turmas_ids = [turma["id"] for turma in turmas]
             
             if turmas_ids:
@@ -4636,7 +4636,7 @@ async def get_student_frequency_report(
             "Nome do Aluno", "CPF", "Unidade", "Curso", "Turma",
             "Total de Chamadas", "Presenças", "Faltas",
             "% Presença", "Classificação de Risco",
-            "Status do Aluno",
+            "Status do Aluno","Data de Nascimento","Email",
             "Motivo de Desistência"
         ])
         # 🚀 BUSCAR TODOS OS ALUNOS DE UMA VEZ
@@ -4646,20 +4646,35 @@ async def get_student_frequency_report(
 
         # 🚀 BUSCAR TODAS AS TURMAS DE UMA VEZ
         turmas_ids_unicos = list({v["turma_id"] for v in aluno_stats.values() if v.get("turma_id")})
-        turmas_lista = await db.turmas.find({"id": {"$in": turmas_ids_unicos}}).to_list(10000)
+        turmas_lista = await db.turmas.find({"id": {"$in": turmas_ids_unicos}}).to_list(20000)
         turmas_map = {t["id"]: t for t in turmas_lista}
 
         # 🚀 BUSCAR UNIDADES E CURSOS DE UMA VEZ
         unidade_ids = list({t.get("unidade_id") for t in turmas_lista if t.get("unidade_id")})
         curso_ids_list = list({t.get("curso_id") for t in turmas_lista if t.get("curso_id")})
-        unidades_map = {u["id"]: u for u in await db.unidades.find({"id": {"$in": unidade_ids}}).to_list(1000)}
-        cursos_map = {c["id"]: c for c in await db.cursos.find({"id": {"$in": curso_ids_list}}).to_list(1000)}
+        unidades_map = {u["id"]: u for u in await db.unidades.find({"id": {"$in": unidade_ids}}).to_list(20000)}
+        cursos_map = {c["id"]: c for c in await db.cursos.find({"id": {"$in": curso_ids_list}}).to_list(20000)}
 
         # 🚀 MONTAR MAPA ALUNO → TURMA
         turmas_por_aluno = {}
         for turma in turmas_lista:
             for aid in turma.get("alunos_ids", []):
-                turmas_por_aluno[aid] = turma
+                # Só registra se ainda não foi registrado,
+                # OU se esta turma é a que aparece nos attendances do aluno
+                if aid not in turmas_por_aluno:
+                    turmas_por_aluno[aid] = turma
+                elif aluno_stats.get(aid, {}).get("turma_id") == turma.get("id"):
+                    turmas_por_aluno[aid] = turma
+            
+        # 🚀 BUSCAR TODOS OS DESISTENTES DE UMA VEZ
+        desistentes_ids = [
+            aid for aid in aluno_stats.keys()
+            if alunos_map.get(aid, {}).get("status") == "desistente"
+        ]
+        desistentes_docs = await db.desistentes.find(
+            {"aluno_id": {"$in": desistentes_ids}}
+        ).to_list(10000)
+        desistentes_map = {d["aluno_id"]: d for d in desistentes_docs}
 
         # Processar cada aluno
         for aluno_id, stats in aluno_stats.items():
@@ -4714,8 +4729,9 @@ async def get_student_frequency_report(
                     aluno.get("status", "ativo").title(),
                     data_nasc_str,
                     aluno.get("email", "N/A"),
-                    (await db.desistentes.find_one({"aluno_id": aluno_id}) or {}).get("motivo_descricao", "") if aluno.get("status") == "desistente" else ""
-                ])
+                    desistentes_map.get(aluno_id, {}).get("motivo_descricao", "") if aluno.get("status") == "desistente" else ""
+                    ]) 
+                    
             except Exception as e:
                 print(f"Erro ao processar aluno {aluno_id}: {e}")
                 continue
@@ -4774,7 +4790,7 @@ async def get_pending_calls(current_user: UserResponse = Depends(get_current_use
             query_turmas["unidade_id"] = {"$in": unidade_ids}
     # Admin vê todas as turmas
                 
-    turmas = await db.turmas.find(query_turmas).to_list(1000)
+    turmas = await db.turmas.find(query_turmas).to_list(20000)
     chamadas_pendentes = []
             
     for turma in turmas:
@@ -4902,7 +4918,7 @@ async def get_dashboard_stats(current_user: UserResponse = Depends(get_current_u
         chamadas_hoje = await db.attendances.count_documents({"data": hoje.isoformat()})
         
         # Stats mensais
-        chamadas_mes = await db.attendances.find({"data": {"$gte": primeiro_mes.isoformat()}}).to_list(1000)
+        chamadas_mes = await db.attendances.find({"data": {"$gte": primeiro_mes.isoformat()}}).to_list(20000)
         
         # 🎯 CORRIGIR: Calcular presenças e faltas a partir dos records
         total_presencas_mes = 0
@@ -4963,7 +4979,7 @@ async def get_dashboard_stats(current_user: UserResponse = Depends(get_current_u
 
     elif current_user.tipo == "instrutor":
         # 👨‍🏫 INSTRUTOR: Apenas suas turmas para estatísticas de chamada
-        minhas_turmas = await db.turmas.find({"instrutor_ids": current_user.id, "ativo": True}).to_list(1000)
+        minhas_turmas = await db.turmas.find({"instrutor_ids": current_user.id, "ativo": True}).to_list(20000)
         turmas_ids = [turma["id"] for turma in minhas_turmas]
         
         # � ALUNOS ATIVOS: TODOS DO CURSO (não apenas das turmas do instrutor)
@@ -4972,7 +4988,7 @@ async def get_dashboard_stats(current_user: UserResponse = Depends(get_current_u
             todas_turmas_curso = await db.turmas.find({
                 "curso_id": getattr(current_user, 'curso_id', None),
                 "ativo": True
-            }).to_list(1000)
+            }).to_list(20000)
             
             # Coletar IDs únicos de TODOS os alunos do curso
             alunos_unicos_curso = set()
@@ -5016,7 +5032,7 @@ async def get_dashboard_stats(current_user: UserResponse = Depends(get_current_u
         chamadas_mes = await db.attendances.find({
             "turma_id": {"$in": turmas_ids},
             "data": {"$gte": primeiro_mes.isoformat()}
-        }).to_list(1000)
+        }).to_list(20000)
         
         # 🎯 CORRIGIR: Calcular presenças e faltas a partir dos records
         total_presencas_mes = 0
@@ -5067,7 +5083,7 @@ async def get_dashboard_stats(current_user: UserResponse = Depends(get_current_u
         if getattr(current_user, 'unidade_id', None):
             query_turmas["unidade_id"] = getattr(current_user, 'unidade_id', None)
         
-        turmas_permitidas = await db.turmas.find(query_turmas).to_list(1000)
+        turmas_permitidas = await db.turmas.find(query_turmas).to_list(20000)
         turmas_ids = [turma["id"] for turma in turmas_permitidas]
         
         # 🔄 CONTAR ALUNOS ÚNICOS (SEM DUPLICAÇÃO)
@@ -5081,7 +5097,7 @@ async def get_dashboard_stats(current_user: UserResponse = Depends(get_current_u
         alunos_desistentes = 0
         
         if alunos_unicos:
-            alunos_lista = await db.alunos.find({"id": {"$in": list(alunos_unicos)}}).to_list(1000)
+            alunos_lista = await db.alunos.find({"id": {"$in": list(alunos_unicos)}}).to_list(20000)
             for aluno in alunos_lista:
                 if aluno.get("status") == "ativo":
                     alunos_ativos += 1
@@ -5098,7 +5114,7 @@ async def get_dashboard_stats(current_user: UserResponse = Depends(get_current_u
         chamadas_mes = await db.attendances.find({
             "turma_id": {"$in": turmas_ids},
             "data": {"$gte": primeiro_mes.isoformat()}
-        }).to_list(1000)
+        }).to_list(20000)
         
         # CORRIGIDO: calcula a partir de records, igual ao bloco do admin
         total_presencas_mes = 0
@@ -5152,7 +5168,7 @@ async def fix_students_migration(current_user: UserResponse = Depends(get_curren
                 {"data_nascimento": {"$exists": False}},
                 {"data_nascimento": None}
             ]
-        }).to_list(1000)
+        }).to_list(20000)
         
         if not alunos_sem_data:
             return {"message": "Todos os alunos já possuem data_nascimento", "migrated": 0}
@@ -5184,7 +5200,7 @@ async def migrate_turmas_tipo():
         print("🔄 Iniciando migração de turmas...")
         
         # Buscar turmas sem o campo tipo_turma
-        turmas_sem_tipo = await db.turmas.find({"tipo_turma": {"$exists": False}}).to_list(1000)
+        turmas_sem_tipo = await db.turmas.find({"tipo_turma": {"$exists": False}}).to_list(20000)
         
         if not turmas_sem_tipo:
             print("✅ Nenhuma migração necessária - todas as turmas já têm tipo_turma")
@@ -5276,7 +5292,7 @@ async def get_dynamic_teacher_stats(
             query_turmas["unidade_id"] = getattr(current_user, 'unidade_id', None)
     
     # 📈 Buscar turmas do usuário
-    turmas = await db.turmas.find(query_turmas).to_list(1000)
+    turmas = await db.turmas.find(query_turmas).to_list(20000)
     turma_ids = [turma["id"] for turma in turmas]
     
     # 🔍 DEBUG: Log para debugar desistentes
@@ -5324,7 +5340,7 @@ async def get_dynamic_teacher_stats(
         if not aluno_ids:
             continue
 
-        alunos = await db.alunos.find({"id": {"$in": aluno_ids}}).to_list(1000)
+        alunos = await db.alunos.find({"id": {"$in": aluno_ids}}).to_list(20000)
         chamadas_turma = chamadas_por_turma.get(turma["id"], [])
 
         for aluno in alunos:
@@ -5822,7 +5838,7 @@ async def get_pending_attendances_for_instructor(current_user: UserResponse = De
                             {"id": {"$in": alunos_ids}}, 
                             {"id": 1, "nome": 1}
                         )
-                        alunos = await alunos_cursor.to_list(1000)
+                        alunos = await alunos_cursor.to_list(20000)
                     else:
                         alunos = []
                     
@@ -6169,7 +6185,7 @@ async def get_teacher_stats(current_user: UserResponse = Depends(get_current_use
             query_turmas = {}
 
         # 📊 BUSCAR TURMAS
-        turmas = await db.turmas.find(query_turmas).to_list(1000)
+        turmas = await db.turmas.find(query_turmas).to_list(20000)
         turma_ids = [turma["id"] for turma in turmas]
 
         if not turma_ids and current_user.tipo != "admin":
@@ -6192,7 +6208,7 @@ async def get_teacher_stats(current_user: UserResponse = Depends(get_current_use
         else:
             query_chamadas = {"turma_id": {"$in": turma_ids}}
 
-        todas_chamadas = await db.attendances.find(query_chamadas).to_list(1000)
+        todas_chamadas = await db.attendances.find(query_chamadas).to_list(20000)
 
         # 🧮 CÁLCULOS
         total_presentes = 0
