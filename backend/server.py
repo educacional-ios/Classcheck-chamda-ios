@@ -4571,7 +4571,7 @@ async def get_student_frequency_report(
         query["data"] = {"$lte": data_fim.isoformat()}
 
     # Buscar todas as attendances
-    attendances = await db.attendances.find(query).to_list(1000)
+    attendances = await db.attendances.find(query).to_list(None)
     
     if export_csv:
         # 📊 CALCULAR ESTATÍSTICAS POR ALUNO
