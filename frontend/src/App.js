@@ -203,9 +203,15 @@
   
     // Calcular presença por aluno
     const estatisticasPorAluno = alunosAtivos.map((aluno) => {
-      const chamadasAluno = chamadas.filter((c) => c.aluno_id === aluno.id);
+      const chamadasAluno = chamadas
+        .flatMap((c) => c.records || [])
+        .filter((r) => r.aluno_id === aluno.id);
+      
       const totalChamadas = chamadasAluno.length;
-      const presencas = chamadasAluno.filter((c) => c.presente).length;
+      
+      const presencas = chamadasAluno.filter(
+        (r) => r.presente
+      ).length;
       const percentual =
         totalChamadas > 0 ? (presencas / totalChamadas) * 100 : 0;
   
