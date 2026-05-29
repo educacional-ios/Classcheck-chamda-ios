@@ -200,45 +200,39 @@
         desistentes: alunos.filter((a) => a.status === "desistente").length,
         taxaMediaPresenca: 0,
       };
+    
+      // --- CORREÇÃO: Cálculo preciso de total de chamadas por aluno ---
   
-    // --- INÍCIO DA CORREÇÃO: Calcular presença por aluno com segurança de ID ---
-
-const estatisticasPorAluno = alunosAtivos.map((aluno) => {
-  // 1. Achata a lista de chamadas para acessar os registros individuais de presença
-  // O uso de '|| []' previne erros caso 'records' não exista (undefined)
-  const chamadasAluno = chamadas
-    .flatMap((c) => c.records || [])
-    .filter((r) => {
-      // 2. LÓGICA DE FILTRAGEM ROBUSTA:
-      // Comparamos o aluno_id do registro com o id OU o _id do aluno.
-      // Isso resolve o problema de incompatibilidade entre formato MongoDB (_id) e formato do front (id).
-      const idDoAluno = aluno.id || aluno._id;
-      const idNoRegistro = r.aluno_id;
+  const estatisticasPorAluno = alunosAtivos.map((aluno) => {
+    // 1. Identifica o ID correto do aluno (suporta _id ou id)
+    const idDoAluno = aluno.id || aluno._id;
+  
+    // 2. Filtra todas as chamadas onde este aluno está presente ou ausente
+    // O flatMap extrai todos os registros de todos os dias
+    const historicoDoAluno = chamadas
+      .flatMap((c) => c.records || [])
+      .filter((r) => r.aluno_id === idDoAluno);
+  
+    // 3. O TOTAL real de chamadas que esse aluno participou
+    const totalChamadas = historicoDoAluno.length;
+  
+    // 4. O TOTAL real de presenças (onde 'presente' é true)
+    const presencas = historicoDoAluno.filter((r) => r.presente === true).length;
+  
+    // 5. Cálculo seguro do percentual
+    const percentual = totalChamadas > 0 ? (presencas / totalChamadas) * 100 : 0;
+  
+    return {
+      ...aluno,
+      totalChamadas, // Agora reflete o histórico real dele
+      presencas,
+      percentualPresenca: percentual,
+      classificacao: classificarRiscoAluno(percentual),
+    };
+  });
+  
+  // --- FIM DA CORREÇÃO ---
       
-      return idNoRegistro === idDoAluno;
-    });
-      
-  // 3. Contagem total de chamadas encontradas para este aluno específico
-  const totalChamadas = chamadasAluno.length;
-      
-  // 4. Contagem de presenças: filtramos apenas onde 'presente' é verdadeiro
-  const presencas = chamadasAluno.filter((r) => r.presente).length;
-  
-  // 5. Cálculo do percentual: evita divisão por zero se o aluno não tiver chamadas
-  const percentual = totalChamadas > 0 ? (presencas / totalChamadas) * 100 : 0;
-  
-  // 6. Montagem do objeto final com os dados calculados
-  return {
-    ...aluno, // Mantém os dados originais do aluno
-    totalChamadas,
-    presencas,
-    percentualPresenca: percentual, // Armazena a porcentagem calculada
-    classificacao: classificarRiscoAluno(percentual), // Aplica a regra de negócio de risco
-  };
-});
-
-// --- FIM DA CORREÇÃO ---
-  
     // Estatísticas gerais
     const alunosEmRisco = estatisticasPorAluno.filter(
       (a) => a.classificacao === "em_risco" || a.classificacao === "critico",
