@@ -143,6 +143,30 @@ async def test_connection():
 async def startup_event():
     await test_connection()
     await migrar_desistentes_para_turmas()
+
+    try:                                          
+        await db.attendances.create_index(
+            [("turma_id", 1), ("data", 1)],
+            unique=True,
+            name="unique_attendance_per_class_per_day"
+        )
+        print("✅ Índice único (turma+data) criado com sucesso")
+    except Exception as e:                        # ← 4 espaços
+        print(f"⚠️ Índice único NÃO criado — provável duplicata no banco: {e}")
+        print("   O sistema vai funcionar normalmente, mas duplicatas não serão bloqueadas.")
+        print("   Para ativar: limpe as duplicatas no banco e reinicie o servidor.")
+
+    await db.attendances.create_index(            
+        [("data", 1)],
+        name="idx_attendance_data"
+    )
+
+    await db.attendances.create_index(            
+        [("turma_id", 1), ("data", -1)],
+        name="idx_attendance_turma_data"
+    )
+
+    print("✅ Índices do banco de dados criados/verificados")
     print("✅ Sistema iniciado SEM dados de exemplo")
 
 async def migrar_desistentes_para_turmas():
@@ -494,14 +518,42 @@ class TurmaUpdate(BaseModel):
 class Chamada(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     turma_id: str
-    instrutor_id: str
+    # instrutor_id agora é opcional porque chamadas novas usam created_by
+    instrutor_id: Optional[str] = None
+    created_by: Optional[str] = None
     data: date
-    horario: str
+    horario: Optional[str] = None
     observacoes_aula: Optional[str] = None
-    presencas: Dict[str, Dict[str, Any]]  # aluno_id -> {presente: bool, justificativa: str, atestado_id: str}
+    observacao: Optional[str] = None
+    # Formato NOVO (lista de registros)
+    records: Optional[List[Dict[str, Any]]] = None
+    # Formato ANTIGO (dicionário) — mantido para compatibilidade
+    presencas: Optional[Dict[str, Dict[str, Any]]] = None
     total_presentes: int = 0
     total_faltas: int = 0
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+    def get_presencas_normalizadas(self) -> Dict[str, bool]:
+        """
+        Retorna um dicionário simples {aluno_id: True/False}
+        independente de qual formato foi usado para salvar.
+        Assim o resto do código não precisa saber qual formato está no banco.
+        """
+        # Se tem o formato novo (lista records), usar ele
+        if self.records:
+            return {
+                r["aluno_id"]: r.get("presente", False)
+                for r in self.records
+                if r.get("aluno_id")
+            }
+        # Se tem o formato antigo (dicionário presencas), usar ele
+        if self.presencas:
+            return {
+                aluno_id: dados.get("presente", False)
+                for aluno_id, dados in self.presencas.items()
+            }
+        # Se não tem nenhum, retorna vazio
+        return {}
 
 class ChamadaCreate(BaseModel):
     turma_id: str
@@ -2914,87 +2966,245 @@ async def update_turma(turma_id: str, turma_update: TurmaUpdate, current_user: U
     return parse_from_mongo(turma_atualizada)
 
 # CHAMADA ROUTES
-@api_router.post("/attendance", response_model=Chamada)
-async def create_chamada(chamada_create: ChamadaCreate, current_user: UserResponse = Depends(get_current_user)):
-    # 🔒 VALIDAÇÃO DE DATA: Só pode fazer chamada do dia atual
+@api_router.post("/attendance")
+async def create_chamada(
+    chamada_create: ChamadaCreate,
+    current_user: UserResponse = Depends(get_current_user)
+):
+    """
+    Endpoint de chamada do ChamadaManager (legado do frontend).
+
+    CORREÇÃO APLICADA: Converte o formato antigo (dicionário 'presencas')
+    para o formato novo (lista 'records') ANTES de salvar no banco.
+
+    Isso garante que TODAS as chamadas ficam no mesmo formato,
+    independente de qual tela do frontend foi usada para registrar.
+    Resultado: relatórios e CSV funcionam corretamente para todas as chamadas.
+    """
+
+    # 🔒 Validar que é a data de hoje
     data_chamada = chamada_create.data
     data_hoje = date.today()
-    
+
     if data_chamada != data_hoje:
         raise HTTPException(
-            status_code=400, 
-            detail=f"Só é possível fazer chamada da data atual ({data_hoje.strftime('%d/%m/%Y')})"
+            status_code=400,
+            detail=f"Só é possível fazer chamada da data atual "
+                   f"({data_hoje.strftime('%d/%m/%Y')})"
         )
-    
-    # 🔒 VALIDAÇÃO: Verificar se já existe chamada para esta turma hoje
+
+    # 🔒 Verificar se já existe chamada para esta turma hoje
     chamada_existente = await db.attendances.find_one({
         "turma_id": chamada_create.turma_id,
         "data": data_hoje.isoformat()
     })
-    
     if chamada_existente:
         raise HTTPException(
             status_code=400,
-            detail=f"Chamada já foi realizada para esta turma hoje ({data_hoje.strftime('%d/%m/%Y')})"
+            detail=f"Chamada já foi realizada para esta turma hoje "
+                   f"({data_hoje.strftime('%d/%m/%Y')})"
         )
-    
-    # Verificar permissões da turma
+
+    # 🔒 Verificar se turma existe
     turma = await db.turmas.find_one({"id": chamada_create.turma_id})
     if not turma:
         raise HTTPException(status_code=404, detail="Turma não encontrada")
-    
-    # Verificar se o usuário pode fazer chamada nesta turma
+
+    # 🔒 Verificar permissões por tipo de usuário
     if current_user.tipo == "instrutor":
-        instrutor_ids = turma.get("instrutor_ids", [])
-        if current_user.id not in instrutor_ids:
-            raise HTTPException(status_code=403, detail="Você só pode fazer chamada das suas turmas")
+        if current_user.id not in turma.get("instrutor_ids", []):
+            raise HTTPException(
+                status_code=403,
+                detail="Você só pode fazer chamada das suas turmas"
+            )
     elif current_user.tipo == "monitor":
         if turma.get("monitor_id") != current_user.id:
-            raise HTTPException(status_code=403, detail="Você só pode fazer chamada das turmas onde está vinculado como monitor")
+            raise HTTPException(
+                status_code=403,
+                detail="Você só pode fazer chamada das turmas onde é monitor"
+            )
     elif current_user.tipo == "pedagogo":
-        if (getattr(current_user, 'curso_id', None) and turma["curso_id"] != getattr(current_user, 'curso_id', None)) or \
-           (getattr(current_user, 'unidade_id', None) and turma["unidade_id"] != getattr(current_user, 'unidade_id', None)):
-            raise HTTPException(status_code=403, detail="Acesso negado: turma fora do seu curso/unidade")
+        curso_errado = (
+            getattr(current_user, "curso_id", None)
+            and turma["curso_id"] != current_user.curso_id
+        )
+        unidade_errada = (
+            getattr(current_user, "unidade_id", None)
+            and turma["unidade_id"] != current_user.unidade_id
+        )
+        if curso_errado or unidade_errada:
+            raise HTTPException(
+                status_code=403,
+                detail="Acesso negado: turma fora do seu curso/unidade"
+            )
     elif current_user.tipo != "admin":
         raise HTTPException(status_code=403, detail="Acesso negado")
-    
-    # 🕐 Adicionar hora de registro para alunos presentes
-    hora_atual = datetime.now().strftime("%H:%M")
-    presencas_com_hora = {}
-    
-    for aluno_id, dados_presenca in chamada_create.presencas.items():
-        presencas_com_hora[aluno_id] = {
-            "presente": dados_presenca.get("presente", False),
-            "justificativa": dados_presenca.get("justificativa", ""),
-            "atestado_id": dados_presenca.get("atestado_id", ""),
-            # 📝 Registrar hora apenas se estiver presente
-            "hora_registro": hora_atual if dados_presenca.get("presente", False) else ""
-        }
-    
-    # Calculate totals
-    total_presentes = sum(1 for p in presencas_com_hora.values() if p.get("presente", False))
-    total_faltas = len(presencas_com_hora) - total_presentes
-    
-    chamada_dict = prepare_for_mongo(chamada_create.dict())
-    chamada_dict.update({
-        "instrutor_id": current_user.id,
-        "total_presentes": total_presentes,
-        "total_faltas": total_faltas,
-        "presencas": presencas_com_hora  # 🕐 Usar presencas com hora
-    })
-    
-    chamada_obj = Chamada(**chamada_dict)
-    mongo_data = prepare_for_mongo(chamada_obj.dict())
-    # 🎯 CORREÇÃO CRÍTICA: Usar collection 'attendances' (não 'chamadas')
-    await db.attendances.insert_one(mongo_data)
-    
-    return chamada_obj
 
-@api_router.get("/classes/{turma_id}/attendance", response_model=List[Chamada])
-async def get_chamadas_turma(turma_id: str, current_user: UserResponse = Depends(get_current_user)):
-    # 🎯 CORREÇÃO CRÍTICA: Usar collection 'attendances' (não 'chamadas')
-    chamadas = await db.attendances.find({"turma_id": turma_id}).to_list(20000)
-    return [Chamada(**parse_from_mongo(chamada)) for chamada in chamadas]
+    hora_atual = datetime.now().strftime("%H:%M")
+
+    # ✅ CONVERSÃO: formato antigo (dicionário) → formato novo (lista)
+    #
+    # ANTES (como chegava do frontend):
+    #   presencas = {
+    #       "id_aluno_1": {"presente": True,  "justificativa": ""},
+    #       "id_aluno_2": {"presente": False, "justificativa": "Doente"},
+    #   }
+    #
+    # DEPOIS (como vai ser salvo no banco):
+    #   records = [
+    #       {"aluno_id": "id_aluno_1", "presente": True,  "hora_registro": "08:30"},
+    #       {"aluno_id": "id_aluno_2", "presente": False, "nota": "Doente"},
+    #   ]
+    records_convertidos = []
+    for aluno_id, dados in chamada_create.presencas.items():
+        presente = dados.get("presente", False)
+        justificativa = dados.get("justificativa", "").strip()
+
+        records_convertidos.append({
+            "aluno_id":       aluno_id,
+            "presente":       presente,
+            "hora_registro":  hora_atual if presente else "",
+            "nota":           justificativa,
+            "justificativa":  justificativa,  # manter para compatibilidade
+            "atestado_id":    dados.get("atestado_id", ""),
+        })
+
+    # Calcular totais
+    total_presentes = sum(1 for r in records_convertidos if r["presente"])
+    total_faltas = len(records_convertidos) - total_presentes
+
+    # Montar documento para salvar — SEMPRE no formato novo
+    novo_id = str(uuid.uuid4())
+    doc = {
+        "id":              novo_id,
+        "turma_id":        chamada_create.turma_id,
+        "data":            data_hoje.isoformat(),
+        "horario":         chamada_create.horario,
+        "observacoes_aula": chamada_create.observacoes_aula,
+        "observacao":      chamada_create.observacoes_aula,
+        # ✅ Salvar como 'records' (formato novo, uniforme)
+        "records":         records_convertidos,
+        # Campos de auditoria
+        "total_presentes": total_presentes,
+        "total_faltas":    total_faltas,
+        "instrutor_id":    current_user.id,
+        "created_by":      current_user.id,
+        "created_at":      datetime.now(timezone.utc).isoformat(),
+    }
+
+    await db.attendances.insert_one(doc)
+
+    # Salvar justificativas de faltas como documentos separados
+    # (aparecem no perfil do aluno na aba de justificativas)
+    for record in records_convertidos:
+        nota = record.get("nota", "")
+        if not record["presente"] and nota:
+            await db.justifications.insert_one({
+                "id":               str(uuid.uuid4()),
+                "student_id":       record["aluno_id"],
+                "attendance_id":    novo_id,
+                "uploaded_by":      current_user.id,
+                "uploaded_by_name": current_user.nome,
+                "uploaded_at":      datetime.now(timezone.utc),
+                "reason_code":      "CUSTOM",
+                "reason_text":      nota,
+                "status":           "registered",
+                "visible_to_student": True,
+                "created_at":       datetime.now(timezone.utc),
+            })
+
+    print(
+        f"✅ Chamada salva (via endpoint legado, formato convertido): "
+        f"turma={chamada_create.turma_id}, data={data_hoje.isoformat()}, "
+        f"por={current_user.nome}, "
+        f"presentes={total_presentes}, faltas={total_faltas}"
+    )
+
+    # Retornar no formato que o frontend do ChamadaManager espera
+    return {
+        "id":              novo_id,
+        "turma_id":        chamada_create.turma_id,
+        "instrutor_id":    current_user.id,
+        "created_by":      current_user.id,
+        "data":            data_hoje,
+        "horario":         chamada_create.horario,
+        "observacoes_aula": chamada_create.observacoes_aula,
+        "observacao":      chamada_create.observacoes_aula,
+        "records":         records_convertidos,
+        "presencas":       chamada_create.presencas,
+        "total_presentes": total_presentes,
+        "total_faltas":    total_faltas,
+        "created_at":      datetime.now(timezone.utc),
+    }
+
+@api_router.get("/classes/{turma_id}/attendance")
+async def get_chamadas_turma(
+    turma_id: str,
+    current_user: UserResponse = Depends(get_current_user)
+):
+    """
+    Retorna todas as chamadas de uma turma.
+
+    CORREÇÃO APLICADA: Suporta os dois formatos que existem no banco:
+    - Formato ANTIGO: campo 'presencas' (dicionário)
+    - Formato NOVO: campo 'records' (lista)
+
+    Os totais de presentes e faltas são CALCULADOS na hora da leitura,
+    não dependem de valores salvos (que podiam estar errados).
+    """
+    chamadas_raw = await db.attendances.find(
+        {"turma_id": turma_id}
+    ).sort("data", 1).to_list(20000)
+
+    resultado = []
+
+    for chamada in chamadas_raw:
+        # Remover o campo _id que o MongoDB adiciona (não é serializável)
+        chamada.pop("_id", None)
+
+        # Garantir que a data está em formato de texto (string)
+        data_val = chamada.get("data", "")
+        if hasattr(data_val, "isoformat"):
+            chamada["data"] = data_val.isoformat()
+
+        # ✅ CALCULAR TOTAIS DINAMICAMENTE
+        # Verifica qual formato está salvo e calcula a partir dele
+        records = chamada.get("records", [])
+        presencas_dict = chamada.get("presencas", {})
+
+        if records:
+            # FORMATO NOVO: contar a partir da lista de records
+            presentes = sum(1 for r in records if r.get("presente", False))
+            chamada["total_presentes"] = presentes
+            chamada["total_faltas"] = len(records) - presentes
+
+        elif presencas_dict:
+            # FORMATO ANTIGO: contar a partir do dicionário de presencas
+            presentes = sum(
+                1 for p in presencas_dict.values()
+                if p.get("presente", False)
+            )
+            chamada["total_presentes"] = presentes
+            chamada["total_faltas"] = len(presencas_dict) - presentes
+
+        else:
+            # Nenhum dado de presença encontrado
+            chamada["total_presentes"] = 0
+            chamada["total_faltas"] = 0
+
+        # Garantir que todos os campos esperados pelo frontend existem
+        # (evita erros quando o documento é antigo e não tem todos os campos)
+        chamada.setdefault("instrutor_id", None)
+        chamada.setdefault("created_by", None)
+        chamada.setdefault("horario", None)
+        chamada.setdefault("observacoes_aula", None)
+        chamada.setdefault("observacao", None)
+        chamada.setdefault("records", [])
+        chamada.setdefault("presencas", {})
+
+        resultado.append(chamada)
+
+    return resultado
 
 @api_router.get("/classes/{turma_id}/students")
 async def get_turma_students(
@@ -3654,7 +3864,7 @@ async def create_justification(
 
     # 7. Se vinculado a uma chamada, marcar como justificado
     if attendance_id:
-        await db.chamadas.update_one(
+        await db.attendances.update_one(
             {"id": attendance_id, f"presencas.{student_id}": {"$exists": True}},
             {"$set": {f"presencas.{student_id}.justificado": True, f"presencas.{student_id}.justification_id": justification_data["id"]}}
         )
@@ -3776,7 +3986,7 @@ async def delete_justification(
     # 5. Remover referência da chamada se existir
     if justification.get("attendance_id"):
         student_id = justification["student_id"]
-        await db.chamadas.update_one(
+        await db.attendances.update_one(
             {"id": justification["attendance_id"]},
             {"$unset": {f"presencas.{student_id}.justificado": "", f"presencas.{student_id}.justification_id": ""}}
         )
@@ -4088,194 +4298,256 @@ async def generate_csv_background(
         csv_jobs[job_id]["error"] = str(e)
         csv_jobs[job_id]["progress"] = 0
 
-
 async def generate_simple_csv_stream(chamadas):
-    """Generate simple CSV format with STREAMING - NO MORE 504 TIMEOUTS!"""
-    import io
+    """
+    Gera CSV de chamadas em modo streaming (linha por linha).
     
-    # Initialize buffer
+    CORREÇÃO APLICADA: Os totais de presença/falta por aluno são
+    calculados UMA ÚNICA VEZ antes de qualquer loop de linhas.
+    Isso evita a multiplicação incorreta dos valores.
+    """
+    import io
     buffer = io.StringIO()
     writer = csv.writer(buffer)
-    
-    # Send headers first
+
+    # -----------------------------------------------------------------
+    # PASSO 1: Escrever o cabeçalho do CSV
+    # -----------------------------------------------------------------
     writer.writerow([
-        "Aluno", "CPF", "Matricula", "Turma", "Tipo_Turma", "Curso", "Data",
-        "Hora_Inicio", "Hora_Fim", "Status", "Hora_Registro",
+        "Aluno", "CPF", "Matricula", "Turma", "Tipo_Turma", "Curso",
+        "Data", "Hora_Inicio", "Hora_Fim", "Status", "Hora_Registro",
         "Responsavel_Turma", "Tipo_Responsavel", "Responsavel_Chamada",
-        "Unidade", "Observacoes", "Total_Presencas", "Total_Faltas", "Falta_Justificada",
-        "Motivo_Desistencia"
+        "Unidade", "Observacoes", "Total_Presencas_Historico",
+        "Total_Faltas_Historico", "Falta_Justificada", "Motivo_Desistencia"
     ])
     yield buffer.getvalue()
     buffer.seek(0)
     buffer.truncate(0)
-    # Stream data row by row to prevent memory buildup
-    processed = 0
-    MAX_SAFE_RECORDS = 10000  # Higher limit since we're streaming
 
-    # ✅ CRIAR ÍNDICE DE CHAMADAS POR TURMA (necessário para calcular totais por aluno)
-    chamadas_por_turma = {}
+    # -----------------------------------------------------------------
+    # PASSO 2: PRÉ-CALCULAR totais históricos de cada aluno em cada turma
+    #
+    # Isso é feito AQUI, FORA de qualquer loop de linhas.
+    # Resultado: um dicionário no formato:
+    #   totais["id_da_turma"]["id_do_aluno"] = {"presencas": 5, "faltas": 2}
+    # -----------------------------------------------------------------
+    totais = {}
     for chamada in chamadas:
         tid = chamada.get("turma_id", "")
-        if tid not in chamadas_por_turma:
-            chamadas_por_turma[tid] = []
-        chamadas_por_turma[tid].append(chamada)
+        if tid not in totais:
+            totais[tid] = {}
 
-    # Process data with STREAMING (sends data as it processes)
+        for record in chamada.get("records", []):
+            aid = record.get("aluno_id")
+            if not aid:
+                continue
+            if aid not in totais[tid]:
+                totais[tid][aid] = {"presencas": 0, "faltas": 0}
+            if record.get("presente", False):
+                totais[tid][aid]["presencas"] += 1
+            else:
+                totais[tid][aid]["faltas"] += 1
+
+    # -----------------------------------------------------------------
+    # PASSO 3: Criar caches para evitar buscar a mesma turma/aluno
+    #          várias vezes no banco de dados (melhora muito a velocidade)
+    # -----------------------------------------------------------------
+    cache_turmas    = {}
+    cache_cursos    = {}
+    cache_unidades  = {}
+    cache_usuarios  = {}
+    cache_alunos    = {}
+    cache_desist    = {}  # cache de desistências e justificativas
+
+    async def buscar_turma(tid):
+        if tid not in cache_turmas:
+            cache_turmas[tid] = await db.turmas.find_one({"id": tid})
+        return cache_turmas[tid]
+
+    async def buscar_aluno(aid):
+        if aid not in cache_alunos:
+            cache_alunos[aid] = await db.alunos.find_one({"id": aid})
+        return cache_alunos[aid]
+
+    async def buscar_usuario(uid):
+        if not uid:
+            return None
+        if uid not in cache_usuarios:
+            cache_usuarios[uid] = await db.usuarios.find_one({"id": uid})
+        return cache_usuarios[uid]
+
+    async def buscar_curso(cid):
+        if not cid:
+            return None
+        if cid not in cache_cursos:
+            cache_cursos[cid] = await db.cursos.find_one({"id": cid})
+        return cache_cursos[cid]
+
+    async def buscar_unidade(uid):
+        if not uid:
+            return None
+        if uid not in cache_unidades:
+            cache_unidades[uid] = await db.unidades.find_one({"id": uid})
+        return cache_unidades[uid]
+
+    # -----------------------------------------------------------------
+    # PASSO 4: Percorrer cada chamada e gerar as linhas do CSV
+    # -----------------------------------------------------------------
+    processed = 0
+    LIMITE_SEGURO = 10000
+
     for chamada in chamadas:
-        # Safety limit (but much higher since streaming)
-        if processed >= MAX_SAFE_RECORDS:
-            print(f"⚠️ CSV LIMIT REACHED: {MAX_SAFE_RECORDS} records processed")
+        if processed >= LIMITE_SEGURO:
+            print(f"⚠️ Limite de {LIMITE_SEGURO} registros atingido no CSV")
             break
-            
+
         try:
-            # Buscar dados da turma
-            turma = await db.turmas.find_one({"id": chamada.get("turma_id")})
+            # Buscar dados da turma (usa cache — não vai ao banco se já buscou)
+            turma = await buscar_turma(chamada.get("turma_id"))
             if not turma:
                 continue
-            
-            # Buscar dados do curso
-            curso = await db.cursos.find_one({"id": turma.get("curso_id")}) if turma.get("curso_id") else None
-            
-            # Buscar dados da unidade
-            unidade = await db.unidades.find_one({"id": turma.get("unidade_id")}) if turma.get("unidade_id") else None
-            
-            # Buscar dados dos responsáveis (instrutores)
-            instrutor_ids = turma.get("instrutor_ids", [])
-            instrutores_nomes = []
-            for instrutor_id in instrutor_ids:
-                resp = await db.usuarios.find_one({"id": instrutor_id})
-                if resp:
-                    instrutores_nomes.append(resp.get("nome", ""))
-            responsavel_nome = ", ".join(instrutores_nomes) if instrutores_nomes else "Sem instrutor"
-            
-            # Dados da chamada
-            data_chamada = chamada.get("data", "")
-            responsavel_chamada_id = chamada.get("created_by", "")
-            responsavel_chamada_nome = ""
-            if responsavel_chamada_id:
-                resp_chamada = await db.usuarios.find_one({"id": responsavel_chamada_id})
-                if resp_chamada:
-                    responsavel_chamada_nome = resp_chamada.get("nome", "")
-            observacoes_gerais = chamada.get("observacoes", "")
-            
-            # Horários da turma
-            hora_inicio = turma.get("horario_inicio", "08:00")
-            hora_fim = turma.get("horario_fim", "12:00")
-            
-            # Records de presença
-            records = chamada.get("records", [])
-            
-            # Para cada aluno na chamada
-            for record in records:
-                try:
-                    aluno_id = record.get("aluno_id")
-                    if not aluno_id:
-                        continue
-                    
-                    # Buscar dados do aluno
-                    aluno = await db.alunos.find_one({"id": aluno_id})
-                    if not aluno:
-                        continue
-                    
-                    # Status
-                    presente = record.get("presente", False)
-                    justificativa = record.get("justificativa", "")
-                    hora_registro = record.get("hora_registro", "")
-                    
-                    status = "Presente" if presente else "Ausente"
-                    
-                    # Observações
-                    obs_final = []
-                    if justificativa:
-                        obs_final.append(justificativa)
-                    if observacoes_gerais:
-                        obs_final.append(f"Obs. turma: {observacoes_gerais}")
-                    observacoes_texto = "; ".join(obs_final)
-                    
-                    # Tipo de turma e responsável
-                    tipo_turma = turma.get("tipo_turma", "regular")
-                    tipo_turma_label = "Extensão" if tipo_turma == "extensao" else "Regular"
-                    
-                    # Determinar tipo de responsável baseado no primeiro instrutor
-                    tipo_responsavel_label = "Instrutor"  # Default
-                    if instrutor_ids:
-                        primeiro_resp = await db.usuarios.find_one({"id": instrutor_ids[0]})
-                        if primeiro_resp and primeiro_resp.get("tipo") == "pedagogo":
-                            tipo_responsavel_label = "Pedagogo"
-                    
-                    # Calcular total de presenças e faltas do aluno em TODAS as chamadas desta turma
-                    total_presencas_aluno = 0
-                    total_faltas_aluno = 0
-                    falta_justificada = "Não"
-                    
-                    for c in chamadas_por_turma.get(turma.get("id", ""), []):
-                        for r in c.get("records", []):
-                            if r.get("aluno_id") == aluno_id:
-                                if r.get("presente", False):
-                                    total_presencas_aluno += 1
-                                else:
-                                    total_faltas_aluno += 1
-                    
-                        # Verificar se esta falta específica tem justificativa
-                    if not presente:
-                        justificativa_existe = await db.justifications.find_one({
-                            "student_id": aluno_id
-                        })
-                        if justificativa_existe or record.get("justificativa"):
-                            falta_justificada = "Sim"
 
-                    # Buscar motivo de desistência se aluno for desistente
-                    motivo_desistencia = ""
-                    if aluno.get("status") == "desistente":
-                        reg_desistencia = await db.desistentes.find_one(
+            tid = turma["id"]
+
+            # Buscar curso e unidade da turma
+            curso   = await buscar_curso(turma.get("curso_id"))
+            unidade = await buscar_unidade(turma.get("unidade_id"))
+
+            # Montar nome dos instrutores responsáveis
+            instrutor_ids = turma.get("instrutor_ids", [])
+            nomes_instrutores = []
+            for iid in instrutor_ids:
+                u = await buscar_usuario(iid)
+                if u:
+                    nomes_instrutores.append(u.get("nome", ""))
+            nome_responsavel = ", ".join(nomes_instrutores) or "Sem instrutor"
+
+            # Descobrir quem fez a chamada (campo created_by nos docs novos)
+            uid_chamada = chamada.get("created_by") or chamada.get("instrutor_id")
+            usuario_chamada = await buscar_usuario(uid_chamada)
+            nome_responsavel_chamada = (
+                usuario_chamada.get("nome", "") if usuario_chamada else ""
+            )
+
+            # Determinar se o responsável é instrutor ou pedagogo
+            tipo_responsavel = "Instrutor"
+            if instrutor_ids:
+                primeiro = await buscar_usuario(instrutor_ids[0])
+                if primeiro and primeiro.get("tipo") == "pedagogo":
+                    tipo_responsavel = "Pedagogo"
+
+            data_chamada     = chamada.get("data", "")
+            obs_aula         = (
+                chamada.get("observacao") or
+                chamada.get("observacoes_aula") or
+                ""
+            )
+
+            # ---------------------------------------------------------
+            # PASSO 5: Para cada aluno nesta chamada, gerar uma linha
+            # ---------------------------------------------------------
+            records = chamada.get("records", [])
+
+            for record in records:
+                aluno_id = record.get("aluno_id")
+                if not aluno_id:
+                    continue
+
+                aluno = await buscar_aluno(aluno_id)
+                if not aluno:
+                    continue
+
+                presente      = record.get("presente", False)
+                hora_registro = record.get("hora_registro", "")
+                nota_falta    = (
+                    record.get("nota") or
+                    record.get("justificativa") or
+                    ""
+                )
+
+                # Montar coluna de observações combinando nota + obs geral
+                partes_obs = []
+                if nota_falta:
+                    partes_obs.append(nota_falta)
+                if obs_aula:
+                    partes_obs.append(f"Obs. aula: {obs_aula}")
+                observacoes_coluna = "; ".join(partes_obs)
+
+                # ---------------------------------------------------------
+                # USAR OS TOTAIS PRÉ-CALCULADOS (sem nenhum loop aqui!)
+                # ---------------------------------------------------------
+                totais_aluno = totais.get(tid, {}).get(
+                    aluno_id, {"presencas": 0, "faltas": 0}
+                )
+                total_presencas = totais_aluno["presencas"]
+                total_faltas    = totais_aluno["faltas"]
+
+                # Verificar se a falta tem justificativa registrada
+                falta_justificada = "Não"
+                if not presente:
+                    chave_just = f"just_{aluno_id}"
+                    if chave_just not in cache_desist:
+                        j = await db.justifications.find_one(
+                            {"student_id": aluno_id}
+                        )
+                        cache_desist[chave_just] = j
+                    if cache_desist.get(chave_just) or nota_falta:
+                        falta_justificada = "Sim"
+
+                # Buscar motivo de desistência (só para alunos desistentes)
+                motivo_desistencia = ""
+                if aluno.get("status") == "desistente":
+                    chave_desist = f"desist_{aluno_id}"
+                    if chave_desist not in cache_desist:
+                        reg = await db.desistentes.find_one(
                             {"aluno_id": aluno_id},
                             sort=[("created_at", -1)]
                         )
-                        if reg_desistencia:
-                            motivo_desistencia = reg_desistencia.get("motivo_descricao", "")
-                            if reg_desistencia.get("motivo_personalizado"):
-                                motivo_desistencia += f" — {reg_desistencia.get('motivo_personalizado')}"
-                    
-                    writer.writerow([
-                        aluno.get("nome", ""),                          # Aluno
-                        aluno.get("cpf", ""),                           # CPF
-                        aluno.get("id", ""),                            # Matricula (usa ID como matrícula)
-                        turma.get("nome", ""),                          # Turma
-                        "Extensão" if turma.get("tipo_turma") == "extensao" else "Regular",  # Tipo_Turma
-                        curso.get("nome", "") if curso else "",         # Curso
-                        data_chamada,                                   # Data
-                        turma.get("horario_inicio", ""),                # Hora_Inicio
-                        turma.get("horario_fim", ""),                   # Hora_Fim
-                        "Presente" if presente else "Ausente",          # Status
-                        record.get("hora_registro", ""),                # Hora_Registro
-                        responsavel_nome,                               # Responsavel_Turma
-                        tipo_responsavel_label,                         # Tipo_Responsavel
-                        responsavel_chamada_nome,                       # Responsavel_Chamada
-                        unidade.get("nome", "") if unidade else "",     # Unidade
-                        observacoes_texto,                              # Observacoes
-                        total_presencas_aluno,                          # Total_Presencas
-                        total_faltas_aluno,                             # Total_Faltas
-                        falta_justificada,                              # Falta_Justificada
-                        motivo_desistencia,                             # Motivo_Desistencia
-                    ])
-                    
-                    # 🚨 STREAM THE ROW IMMEDIATELY (prevents timeout!)
-                    yield buffer.getvalue()
-                    buffer.seek(0)
-                    buffer.truncate(0)
-                    
-                    processed += 1  # 📊 Count processed records
-                    
-                except Exception as e:
-                    print(f"Erro ao processar record: {e}")
-                    continue
-                    
+                        cache_desist[chave_desist] = reg
+                    reg = cache_desist.get(chave_desist)
+                    if reg:
+                        motivo_desistencia = reg.get("motivo_descricao", "")
+                        if reg.get("motivo_personalizado"):
+                            motivo_desistencia += (
+                                f" — {reg['motivo_personalizado']}"
+                            )
+
+                # Escrever a linha no buffer e enviar imediatamente
+                writer.writerow([
+                    aluno.get("nome", ""),
+                    aluno.get("cpf", ""),
+                    aluno.get("id", ""),
+                    turma.get("nome", ""),
+                    "Extensão" if turma.get("tipo_turma") == "extensao"
+                               else "Regular",
+                    curso.get("nome", "") if curso else "",
+                    data_chamada,
+                    turma.get("horario_inicio", ""),
+                    turma.get("horario_fim", ""),
+                    "Presente" if presente else "Ausente",
+                    hora_registro,
+                    nome_responsavel,
+                    tipo_responsavel,
+                    nome_responsavel_chamada,
+                    unidade.get("nome", "") if unidade else "",
+                    observacoes_coluna,
+                    total_presencas,   # ← valor correto, sem multiplicação
+                    total_faltas,      # ← valor correto, sem multiplicação
+                    falta_justificada,
+                    motivo_desistencia,
+                ])
+
+                # Enviar linha imediatamente (streaming — evita timeout)
+                yield buffer.getvalue()
+                buffer.seek(0)
+                buffer.truncate(0)
+                processed += 1
+
         except Exception as e:
-            print(f"Erro ao processar chamada {chamada.get('id', 'unknown')}: {e}")
+            print(f"❌ Erro ao processar chamada {chamada.get('id', '?')}: {e}")
             continue
-    
-    # Final stream completion
-    print(f"✅ CSV Simples concluído: {processed} registros processados")
+
+    print(f"✅ CSV simples concluído: {processed} linhas geradas")
 
 
 async def generate_complete_csv_stream(chamadas):
